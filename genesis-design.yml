@@ -14,6 +14,7 @@ facts:
         limit: 1
       max_suffrage_size: 99
       suffrage_expel_lifespan: 99
+      empty_proposal_no_block: true
   - _hint: mitum-currency-register-genesis-currency-operation-fact-v0.0.1
     genesis_node_key: 02b61050d2e795ce08121572acfc12fe53c5644f8d9a74999f3936a23ba6f0c1e3fpu
     keys:

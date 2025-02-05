@@ -3,8 +3,7 @@ package cmds
 import (
 	"context"
 	currencycmds "github.com/ProtoconNet/mitum-currency/v3/cmds"
-	ctypes "github.com/ProtoconNet/mitum-currency/v3/types"
-	"github.com/ProtoconNet/mitum-payment/operation/payment"
+	"github.com/ProtoconNet/mitum-payment/operation/deposit"
 	"github.com/ProtoconNet/mitum2/base"
 	"github.com/ProtoconNet/mitum2/util"
 	"github.com/pkg/errors"
@@ -13,13 +12,14 @@ import (
 type DepositCommand struct {
 	BaseCommand
 	currencycmds.OperationFlags
-	Sender        currencycmds.AddressFlag        `arg:"" name:"sender" help:"sender address" required:"true"`
-	Contract      currencycmds.AddressFlag        `arg:"" name:"contract" help:"contract address" required:"true"`
-	Amount        currencycmds.CurrencyAmountFlag `arg:"" name:"currency-amount" help:"amount (ex: \"<currency>,<amount>\")"`
-	TransferLimit currencycmds.BigFlag            `arg:"" name:"transfer limit" help:"transfer limit" required:"true"`
-	StartTime     uint64                          `arg:"" name:"start time" help:"start time" required:"true"`
-	EndTime       uint64                          `arg:"" name:"end time" help:"end time" required:"true"`
-	Duration      uint64                          `arg:"" name:"duration" help:"duration" required:"true"`
+	Sender        currencycmds.AddressFlag    `arg:"" name:"sender" help:"sender address" required:"true"`
+	Contract      currencycmds.AddressFlag    `arg:"" name:"contract" help:"contract address" required:"true"`
+	Amount        currencycmds.BigFlag        `arg:"" name:"amount" help:"deposit amount" required:"true"`
+	TransferLimit currencycmds.BigFlag        `arg:"" name:"transfer limit" help:"transfer limit" required:"true"`
+	StartTime     uint64                      `arg:"" name:"start time" help:"start time" required:"true"`
+	EndTime       uint64                      `arg:"" name:"end time" help:"end time" required:"true"`
+	Duration      uint64                      `arg:"" name:"duration" help:"duration" required:"true"`
+	Currency      currencycmds.CurrencyIDFlag `arg:"" name:"currency" help:"currency id" required:"true"`
 	sender        base.Address
 	contract      base.Address
 }
@@ -68,20 +68,15 @@ func (cmd *DepositCommand) parseFlags() error {
 func (cmd *DepositCommand) createOperation() (base.Operation, error) { // nolint:dupl
 	e := util.StringError("failed to create deposit operation")
 
-	am := ctypes.NewAmount(cmd.Amount.Big, cmd.Amount.CID)
-	if err := am.IsValid(nil); err != nil {
-		return nil, err
-	}
-
-	fact := payment.NewDepositFact(
-		[]byte(cmd.Token), cmd.sender, cmd.contract, am, cmd.TransferLimit.Big,
-		cmd.StartTime, cmd.EndTime, cmd.Duration,
+	fact := deposit.NewDepositFact(
+		[]byte(cmd.Token), cmd.sender, cmd.contract, cmd.Amount.Big, cmd.TransferLimit.Big,
+		cmd.StartTime, cmd.EndTime, cmd.Duration, cmd.Currency.CID,
 	)
 	if err := fact.IsValid(nil); err != nil {
 		return nil, err
 	}
 
-	op, err := payment.NewDeposit(fact)
+	op, err := deposit.NewDeposit(fact)
 	if err != nil {
 		return nil, e.Wrap(err)
 	}

@@ -128,7 +128,7 @@ func (hd *Handlers) handlePaymentAccountInfoInGroup(contract, account string) ([
 func (hd *Handlers) buildAccountInfoValue(contract string, it AccountInfoValue) (cdigest.Hal, error) {
 	h, err := hd.combineURL(
 		HandlerPathPaymentAccountInfo,
-		"contract", contract, "address", it.accountInfo.Address().String(),
+		"contract", contract, "address", it.setting.Address().String(),
 	)
 	if err != nil {
 		return nil, err

@@ -52,14 +52,14 @@ func (doc DesignDoc) MarshalBSON() ([]byte, error) {
 	return bsonenc.Marshal(m)
 }
 
-type AccountRecordDoc struct {
+type DepositRecordDoc struct {
 	mongodb.BaseDoc
-	st            base.State
-	accountRecord types.AccountRecord
+	st     base.State
+	record types.DepositRecord
 }
 
-func NewAccountRecordDoc(st base.State, enc encoder.Encoder) (*AccountRecordDoc, error) {
-	accountRecord, err := state.GetAccountRecordFromState(st)
+func NewDepositRecordDoc(st base.State, enc encoder.Encoder) (*DepositRecordDoc, error) {
+	record, err := state.GetDepositRecordFromState(st)
 	if err != nil {
 		return nil, err
 	}
@@ -69,14 +69,14 @@ func NewAccountRecordDoc(st base.State, enc encoder.Encoder) (*AccountRecordDoc,
 		return nil, err
 	}
 
-	return &AccountRecordDoc{
-		BaseDoc:       b,
-		st:            st,
-		accountRecord: *accountRecord,
+	return &DepositRecordDoc{
+		BaseDoc: b,
+		st:      st,
+		record:  *record,
 	}, nil
 }
 
-func (doc AccountRecordDoc) MarshalBSON() ([]byte, error) {
+func (doc DepositRecordDoc) MarshalBSON() ([]byte, error) {
 	m, err := doc.BaseDoc.M()
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (doc AccountRecordDoc) MarshalBSON() ([]byte, error) {
 	}
 
 	m["contract"] = parsedKey[1]
-	m["address"] = doc.accountRecord.Address()
+	m["address"] = doc.record.Address()
 	m["height"] = doc.st.Height()
 
 	return bsonenc.Marshal(m)
@@ -100,18 +100,18 @@ var (
 
 type AccountInfoValue struct {
 	hint.BaseHinter
-	accountInfo   types.AccountInfo
-	accountRecord types.AccountRecord
+	setting types.Setting
+	record  types.DepositRecord
 }
 
 func NewAccountInfoValue(
-	accountInfo types.AccountInfo,
-	accountRecord types.AccountRecord,
+	setting types.Setting,
+	record types.DepositRecord,
 ) AccountInfoValue {
 	return AccountInfoValue{
-		BaseHinter:    hint.NewBaseHinter(AccountInfoValueHint),
-		accountInfo:   accountInfo,
-		accountRecord: accountRecord,
+		BaseHinter: hint.NewBaseHinter(AccountInfoValueHint),
+		setting:    setting,
+		record:     record,
 	}
 }
 
@@ -119,81 +119,24 @@ func (ai AccountInfoValue) Hint() hint.Hint {
 	return AccountInfoValueHint
 }
 
-func (ai AccountInfoValue) AccountInfo() types.AccountInfo {
-	return ai.accountInfo
+func (ai AccountInfoValue) AccountInfo() types.Setting {
+	return ai.setting
 }
 
-func (ai AccountInfoValue) AccountRecord() types.AccountRecord {
-	return ai.accountRecord
+func (ai AccountInfoValue) AccountRecord() types.DepositRecord {
+	return ai.record
 }
-
-//func (ai AccountInfoValue) MarshalBSON() ([]byte, error) {
-//	accountInfo, err := ai.accountInfo.MarshalBSON()
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	accountRecord, err := ai.accountRecord.MarshalBSON()
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return bsonenc.Marshal(
-//		bson.M{
-//			"_hint":          ai.Hint().String(),
-//			"account_info":   accountInfo,
-//			"account_record": accountRecord,
-//		},
-//	)
-//}
-//
-//type AccountInfoValueBSONUnmarshaler struct {
-//	Hint          string   `bson:"_hint"`
-//	AccountInfo   bson.Raw `bson:"account_info"`
-//	AccountRecord bson.Raw `bson:"account_record"`
-//}
-//
-//func (ai *AccountInfoValue) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
-//	e := util.StringError("Decode bson of AccountInfoValue")
-//
-//	var uai AccountInfoValueBSONUnmarshaler
-//	if err := enc.Unmarshal(b, &uai); err != nil {
-//		return e.Wrap(err)
-//	}
-//
-//	ht, err := hint.ParseHint(uai.Hint)
-//	if err != nil {
-//		return e.Wrap(err)
-//	}
-//
-//	ai.BaseHinter = hint.NewBaseHinter(ht)
-//
-//	var accountInfo types.AccountInfo
-//	if err := accountInfo.DecodeBSON(uai.AccountInfo, enc); err != nil {
-//		return e.Wrap(err)
-//	}
-//
-//	var accountRecord types.AccountRecord
-//	if err := accountRecord.DecodeBSON(uai.AccountRecord, enc); err != nil {
-//		return e.Wrap(err)
-//	}
-//
-//	ai.accountInfo = accountInfo
-//	ai.accountRecord = accountRecord
-//
-//	return nil
-//}
 
 type AccountInfoValueJSONMarshaler struct {
 	hint.BaseHinter
-	AccountInfo   types.AccountInfo   `json:"account_info"`
-	AccountRecord types.AccountRecord `json:"account_record"`
+	Setting types.Setting       `json:"transfer_setting"`
+	Record  types.DepositRecord `json:"deposit_record"`
 }
 
 func (ai AccountInfoValue) MarshalJSON() ([]byte, error) {
 	return util.MarshalJSON(AccountInfoValueJSONMarshaler{
-		BaseHinter:    ai.BaseHinter,
-		AccountInfo:   ai.accountInfo,
-		AccountRecord: ai.accountRecord,
+		BaseHinter: ai.BaseHinter,
+		Setting:    ai.setting,
+		Record:     ai.record,
 	})
 }

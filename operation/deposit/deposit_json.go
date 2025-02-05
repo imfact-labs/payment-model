@@ -1,7 +1,6 @@
-package payment
+package deposit
 
 import (
-	"encoding/json"
 	"github.com/ProtoconNet/mitum-currency/v3/common"
 	"github.com/ProtoconNet/mitum-currency/v3/operation/extras"
 	ctypes "github.com/ProtoconNet/mitum-currency/v3/types"
@@ -12,13 +11,14 @@ import (
 
 type DepositFactJSONMarshaler struct {
 	base.BaseFactJSONMarshaler
-	Sender        base.Address  `json:"sender"`
-	Contract      base.Address  `json:"contract"`
-	Amount        ctypes.Amount `json:"amount"`
-	TransferLimit common.Big    `json:"transfer_limit"`
-	StartTime     uint64        `json:"start_time"`
-	EndTime       uint64        `json:"end_time"`
-	Duration      uint64        `json:"duration"`
+	Sender        base.Address      `json:"sender"`
+	Contract      base.Address      `json:"contract"`
+	Amount        common.Big        `json:"amount"`
+	TransferLimit common.Big        `json:"transfer_limit"`
+	StartTime     uint64            `json:"start_time"`
+	EndTime       uint64            `json:"end_time"`
+	Duration      uint64            `json:"duration"`
+	Currency      ctypes.CurrencyID `json:"currency"`
 }
 
 func (fact DepositFact) MarshalJSON() ([]byte, error) {
@@ -31,18 +31,22 @@ func (fact DepositFact) MarshalJSON() ([]byte, error) {
 		StartTime:             fact.startTime,
 		EndTime:               fact.endTime,
 		Duration:              fact.duration,
+		Currency:              fact.currency,
 	})
 }
 
 type DepositFactJSONUnmarshaler struct {
 	base.BaseFactJSONUnmarshaler
-	Sender        string          `json:"sender"`
-	Contract      string          `json:"contract"`
-	Amount        json.RawMessage `json:"amount"`
-	TransferLimit string          `json:"transfer_limit"`
-	StartTime     uint64          `json:"start_time"`
-	EndTime       uint64          `json:"end_time"`
-	Duration      uint64          `json:"duration"`
+	Sender        string     `json:"sender"`
+	Contract      string     `json:"contract"`
+	Account       string     `json:"account"`
+	Amount        common.Big `json:"amount"`
+	TransferLimit common.Big `json:"transfer_limit"`
+	StartTime     uint64     `json:"start_time"`
+	EndTime       uint64     `json:"end_time"`
+	Duration      uint64     `json:"duration"`
+	Editable      bool       `json:"editable"`
+	Currency      string     `json:"currency"`
 }
 
 func (fact *DepositFact) DecodeJSON(b []byte, enc encoder.Encoder) error {
@@ -52,16 +56,11 @@ func (fact *DepositFact) DecodeJSON(b []byte, enc encoder.Encoder) error {
 	}
 
 	fact.BaseFact.SetJSONUnmarshaler(u.BaseFactJSONUnmarshaler)
-
-	var amount ctypes.Amount
-	err := amount.DecodeJSON(u.Amount, enc)
-	if err != nil {
-		return common.DecorateError(err, common.ErrDecodeJson, *fact)
-	}
-	fact.amount = amount
+	fact.amount = u.Amount
+	fact.transferLimit = u.TransferLimit
 
 	if err := fact.unpack(
-		enc, u.Sender, u.Contract, u.TransferLimit, u.StartTime, u.EndTime, u.Duration,
+		enc, u.Sender, u.Contract, u.StartTime, u.EndTime, u.Duration, u.Currency,
 	); err != nil {
 		return common.DecorateError(err, common.ErrDecodeJson, *fact)
 	}

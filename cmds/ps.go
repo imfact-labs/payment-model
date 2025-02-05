@@ -2,7 +2,7 @@ package cmds
 
 import (
 	"context"
-	"github.com/ProtoconNet/mitum-payment/operation/payment"
+	"github.com/ProtoconNet/mitum-payment/operation/deposit"
 
 	currencycmds "github.com/ProtoconNet/mitum-currency/v3/cmds"
 	currencyprocessor "github.com/ProtoconNet/mitum-currency/v3/operation/processor"
@@ -44,28 +44,28 @@ func POperationProcessorsMap(pctx context.Context) (context.Context, error) {
 	}
 
 	if err := opr.SetProcessor(
-		payment.RegisterModelHint,
-		payment.NewRegisterModelProcessor(),
+		deposit.RegisterModelHint,
+		deposit.NewRegisterModelProcessor(),
 	); err != nil {
 		return pctx, err
 	} else if err := opr.SetProcessor(
-		payment.DepositHint,
-		payment.NewDepositProcessor(),
+		deposit.DepositHint,
+		deposit.NewDepositProcessor(),
 	); err != nil {
 		return pctx, err
 	} else if err := opr.SetProcessor(
-		payment.UpdateAccountInfoHint,
-		payment.NewUpdateAccountInfoProcessor(),
+		deposit.WithdrawHint,
+		deposit.NewWithdrawProcessor(),
 	); err != nil {
 		return pctx, err
 	} else if err := opr.SetProcessorWithProposal(
-		payment.TransferHint,
-		payment.NewTransferProcessor(),
+		deposit.TransferHint,
+		deposit.NewTransferProcessor(),
 	); err != nil {
 		return pctx, err
 	}
 
-	_ = setA.Add(payment.RegisterModelHint, func(height base.Height, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
+	_ = setA.Add(deposit.RegisterModelHint, func(height base.Height, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
 		return opr.New(
 			height,
 			getStatef,
@@ -74,7 +74,7 @@ func POperationProcessorsMap(pctx context.Context) (context.Context, error) {
 		)
 	})
 
-	_ = setA.Add(payment.DepositHint, func(height base.Height, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
+	_ = setA.Add(deposit.DepositHint, func(height base.Height, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
 		return opr.New(
 			height,
 			getStatef,
@@ -83,7 +83,7 @@ func POperationProcessorsMap(pctx context.Context) (context.Context, error) {
 		)
 	})
 
-	_ = setA.Add(payment.UpdateAccountInfoHint, func(height base.Height, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
+	_ = setA.Add(deposit.WithdrawHint, func(height base.Height, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
 		return opr.New(
 			height,
 			getStatef,
@@ -92,7 +92,7 @@ func POperationProcessorsMap(pctx context.Context) (context.Context, error) {
 		)
 	})
 
-	_ = setB.Add(payment.TransferHint, func(height base.Height, proposal base.ProposalSignFact, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
+	_ = setB.Add(deposit.TransferHint, func(height base.Height, proposal base.ProposalSignFact, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
 		if err := opr.SetProposal(&proposal); err != nil {
 			return nil, err
 		}

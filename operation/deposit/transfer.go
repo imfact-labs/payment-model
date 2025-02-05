@@ -1,4 +1,4 @@
-package payment
+package deposit
 
 import (
 	"github.com/ProtoconNet/mitum-currency/v3/common"
@@ -20,13 +20,14 @@ type TransferFact struct {
 	sender   base.Address
 	contract base.Address
 	receiver base.Address
-	amount   ctypes.Amount
+	amount   common.Big
+	currency ctypes.CurrencyID
 }
 
 func NewTransferFact(
 	token []byte,
 	sender, contract, receiver base.Address,
-	amount ctypes.Amount,
+	amount common.Big, currency ctypes.CurrencyID,
 ) TransferFact {
 	bf := base.NewBaseFact(TransferFactHint, token)
 	fact := TransferFact{
@@ -35,6 +36,7 @@ func NewTransferFact(
 		contract: contract,
 		receiver: receiver,
 		amount:   amount,
+		currency: currency,
 	}
 	fact.SetHash(fact.GenerateHash())
 
@@ -56,6 +58,7 @@ func (fact TransferFact) Bytes() []byte {
 		fact.contract.Bytes(),
 		fact.receiver.Bytes(),
 		fact.amount.Bytes(),
+		fact.currency.Bytes(),
 	)
 }
 
@@ -96,8 +99,12 @@ func (fact TransferFact) Receiver() base.Address {
 	return fact.receiver
 }
 
-func (fact TransferFact) Amount() ctypes.Amount {
+func (fact TransferFact) Amount() common.Big {
 	return fact.amount
+}
+
+func (fact TransferFact) Currency() ctypes.CurrencyID {
+	return fact.currency
 }
 
 func (fact TransferFact) Signer() base.Address {
@@ -110,7 +117,7 @@ func (fact TransferFact) Addresses() ([]base.Address, error) {
 
 func (fact TransferFact) FeeBase() map[ctypes.CurrencyID][]common.Big {
 	required := make(map[ctypes.CurrencyID][]common.Big)
-	required[fact.Amount().Currency()] = []common.Big{fact.Amount().Big()}
+	required[fact.Currency()] = []common.Big{fact.Amount()}
 
 	return required
 }

@@ -1,8 +1,8 @@
-package payment
+package deposit
 
 import (
 	"context"
-	"github.com/ProtoconNet/mitum-payment/types"
+	"github.com/ProtoconNet/mitum-currency/v3/state/currency"
 	"sync"
 
 	"github.com/ProtoconNet/mitum-currency/v3/common"
@@ -13,35 +13,35 @@ import (
 	"github.com/ProtoconNet/mitum2/util"
 )
 
-var updateAccountInfoProcessorPool = sync.Pool{
+var withdrawProcessorPool = sync.Pool{
 	New: func() interface{} {
-		return new(UpdateAccountInfoProcessor)
+		return new(WithdrawProcessor)
 	},
 }
 
-func (UpdateAccountInfo) Process(
+func (Withdraw) Process(
 	_ context.Context, _ base.GetStateFunc,
 ) ([]base.StateMergeValue, base.OperationProcessReasonError, error) {
 	return nil, nil, nil
 }
 
-type UpdateAccountInfoProcessor struct {
+type WithdrawProcessor struct {
 	*base.BaseOperationProcessor
 }
 
-func NewUpdateAccountInfoProcessor() ctypes.GetNewProcessor {
+func NewWithdrawProcessor() ctypes.GetNewProcessor {
 	return func(
 		height base.Height,
 		getStateFunc base.GetStateFunc,
 		newPreProcessConstraintFunc base.NewOperationProcessorProcessFunc,
 		newProcessConstraintFunc base.NewOperationProcessorProcessFunc,
 	) (base.OperationProcessor, error) {
-		e := util.StringError("failed to create new UpdateAccountInfoProcessor")
+		e := util.StringError("failed to create new WithdrawProcessor")
 
-		nopp := updateAccountInfoProcessorPool.Get()
-		opp, ok := nopp.(*UpdateAccountInfoProcessor)
+		nopp := withdrawProcessorPool.Get()
+		opp, ok := nopp.(*WithdrawProcessor)
 		if !ok {
-			return nil, e.Errorf("expected UpdateAccountInfoProcessor, not %T", nopp)
+			return nil, e.Errorf("expected WithdrawProcessor, not %T", nopp)
 		}
 
 		b, err := base.NewBaseOperationProcessor(
@@ -56,17 +56,18 @@ func NewUpdateAccountInfoProcessor() ctypes.GetNewProcessor {
 	}
 }
 
-func (opp *UpdateAccountInfoProcessor) PreProcess(
+func (opp *WithdrawProcessor) PreProcess(
 	ctx context.Context, op base.Operation, getStateFunc base.GetStateFunc,
 ) (context.Context, base.OperationProcessReasonError, error) {
-	fact, ok := op.Fact().(UpdateAccountInfoFact)
+	fact, ok := op.Fact().(WithdrawFact)
 	if !ok {
 		return ctx, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
 				Wrap(common.ErrMTypeMismatch).
-				Errorf("expected %T, not %T", UpdateAccountInfoFact{}, op.Fact())), nil
+				Errorf("expected %T, not %T", WithdrawFact{}, op.Fact())), nil
 	}
 
+	cid := fact.DepositCurrency()
 	if err := fact.IsValid(nil); err != nil {
 		return ctx, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
@@ -91,17 +92,17 @@ func (opp *UpdateAccountInfoProcessor) PreProcess(
 			)), nil
 	}
 
-	accountInfo := design.Account(fact.Sender().String())
-	if accountInfo == nil {
+	setting := design.AccountSetting(fact.Sender().String())
+	if setting == nil {
 		return nil, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
-				Wrap(common.ErrMValueInvalid).Errorf("info of account, %v not found in contract account %v",
+				Wrap(common.ErrMValueInvalid).Errorf("setting of account, %v not found in contract account %v",
 				fact.Sender(), fact.Contract(),
 			)), nil
 	}
 
 	st, err = cstate.ExistsState(
-		state.AccountRecordStateKey(fact.Contract().String(), fact.Sender().String()),
+		state.DepositRecordStateKey(fact.Contract().String(), fact.Sender().String()),
 		"account record", getStateFunc)
 	if err != nil {
 		return nil, base.NewBaseOperationProcessReasonError(
@@ -111,7 +112,7 @@ func (opp *UpdateAccountInfoProcessor) PreProcess(
 			)), nil
 	}
 
-	accountRecord, err := state.GetAccountRecordFromState(st)
+	record, err := state.GetDepositRecordFromState(st)
 	if err != nil {
 		return nil, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
@@ -119,50 +120,36 @@ func (opp *UpdateAccountInfoProcessor) PreProcess(
 				fact.Sender(), fact.Contract(),
 			)), nil
 	}
-	amount := accountRecord.Amount(fact.TransferLimit().Currency().String())
+	amount := record.Amount(cid.String())
 	if amount == nil {
 		return nil, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
 				Wrap(common.ErrMValueInvalid).Errorf(
 				"record of account, %v for currency id, %v not found in contract account %v",
-				fact.Sender(), fact.TransferLimit().Currency(), fact.Contract(),
+				fact.Sender(), cid, fact.Contract(),
 			)), nil
 	}
 
 	return ctx, nil, nil
 }
 
-func (opp *UpdateAccountInfoProcessor) Process( // nolint:dupl
+func (opp *WithdrawProcessor) Process( // nolint:dupl
 	_ context.Context, op base.Operation, getStateFunc base.GetStateFunc) (
 	[]base.StateMergeValue, base.OperationProcessReasonError, error,
 ) {
-	fact, _ := op.Fact().(UpdateAccountInfoFact)
+	fact, _ := op.Fact().(WithdrawFact)
 
+	cid := fact.DepositCurrency()
 	st, _ := cstate.ExistsState(state.DesignStateKey(fact.Contract().String()), "service design", getStateFunc)
 	design, _ := state.GetDesignFromState(st)
 	st, _ = cstate.ExistsState(
-		state.AccountRecordStateKey(fact.Contract().String(), fact.Sender().String()),
+		state.DepositRecordStateKey(fact.Contract().String(), fact.Sender().String()),
 		"account record", getStateFunc)
-	accountRecord, _ := state.GetAccountRecordFromState(st)
-	amount := accountRecord.Amount(fact.TransferLimit().Currency().String())
+	record, _ := state.GetDepositRecordFromState(st)
+	big := record.Amount(cid.String())
+	am := ctypes.NewAmount(*big, cid)
 
-	if amount.Big().IsZero() && fact.TransferLimit().Big().IsZero() {
-		design.RemoveAccount(fact.Sender())
-	} else {
-		accountInfo := types.NewAccountInfo(fact.Sender())
-		accountInfo.SetTransferLimit(fact.transferLimit)
-		accountInfo.SetPeriodTime(
-			fact.TransferLimit().Currency().String(),
-			[3]uint64{fact.StartTime(), fact.EndTime(), fact.Duration()},
-		)
-		err := design.UpdateAccount(accountInfo)
-		if err != nil {
-			return nil, base.NewBaseOperationProcessReasonError(
-				"failed to update info of account, %v in contract account %v: %w", fact.Sender(), fact.Contract(), err,
-			), nil
-		}
-	}
-
+	design.RemoveAccountSetting(fact.Sender())
 	if err := design.IsValid(nil); err != nil {
 		return nil, base.NewBaseOperationProcessReasonError("invalid service design, %q; %w", fact.Contract(), err), nil
 	}
@@ -172,12 +159,35 @@ func (opp *UpdateAccountInfoProcessor) Process( // nolint:dupl
 		state.DesignStateKey(fact.Contract().String()),
 		state.NewDesignStateValue(design),
 	))
+	sts = append(
+		sts,
+		common.NewBaseStateMergeValue(
+			currency.BalanceStateKey(fact.Contract(), cid),
+			currency.NewDeductBalanceStateValue(am),
+			func(height base.Height, st base.State) base.StateValueMerger {
+				return currency.NewBalanceStateValueMerger(
+					height, currency.BalanceStateKey(fact.Contract(), cid),
+					cid, st,
+				)
+			}),
+	)
+
+	sts = append(sts, common.NewBaseStateMergeValue(
+		currency.BalanceStateKey(fact.Sender(), cid),
+		currency.NewAddBalanceStateValue(am),
+		func(height base.Height, st base.State) base.StateValueMerger {
+			return currency.NewBalanceStateValueMerger(height,
+				currency.BalanceStateKey(fact.Sender(), cid),
+				cid, st,
+			)
+		},
+	))
 
 	return sts, nil, nil
 }
 
-func (opp *UpdateAccountInfoProcessor) Close() error {
-	updateAccountInfoProcessorPool.Put(opp)
+func (opp *WithdrawProcessor) Close() error {
+	withdrawProcessorPool.Put(opp)
 
 	return nil
 }

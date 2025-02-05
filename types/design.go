@@ -16,14 +16,14 @@ var maxAccounts = 1000
 
 type Design struct {
 	hint.BaseHinter
-	accounts map[string]AccountInfo
+	settings map[string]Setting
 }
 
 func NewDesign() Design {
-	accounts := make(map[string]AccountInfo)
+	settings := make(map[string]Setting)
 	return Design{
 		BaseHinter: hint.NewBaseHinter(DesignHint),
-		accounts:   accounts,
+		settings:   settings,
 	}
 }
 
@@ -39,8 +39,8 @@ func (de Design) IsValid([]byte) error {
 
 func (de Design) Bytes() []byte {
 	var bac []byte
-	if de.accounts != nil {
-		ac, _ := json.Marshal(de.accounts)
+	if de.settings != nil {
+		ac, _ := json.Marshal(de.settings)
 		bac = valuehash.NewSHA256(ac).Bytes()
 	} else {
 		bac = []byte{}
@@ -57,12 +57,12 @@ func (de Design) GenerateHash() util.Hash {
 	return valuehash.NewSHA256(de.Bytes())
 }
 
-func (de Design) Accounts() map[string]AccountInfo {
-	return de.accounts
+func (de Design) AccountSettings() map[string]Setting {
+	return de.settings
 }
 
-func (de Design) Account(account string) *AccountInfo {
-	v, found := de.accounts[account]
+func (de Design) AccountSetting(account string) *Setting {
+	v, found := de.settings[account]
 
 	if !found {
 		return nil
@@ -71,35 +71,35 @@ func (de Design) Account(account string) *AccountInfo {
 	return &v
 }
 
-func (de *Design) AddAccount(account AccountInfo) error {
-	de.accounts[account.Address().String()] = account
+func (de *Design) AddAccountSetting(setting Setting) error {
+	de.settings[setting.Address().String()] = setting
 
-	if len(de.accounts) > maxAccounts {
+	if len(de.settings) > maxAccounts {
 		return common.ErrValOOR.Wrap(
-			errors.Errorf("accounts over allowed, %d > %d", len(de.accounts), maxAccounts))
+			errors.Errorf("accounts over allowed, %d > %d", len(de.settings), maxAccounts))
 	}
 
 	return nil
 }
 
-func (de *Design) UpdateAccount(account AccountInfo) error {
-	_, found := de.accounts[account.Address().String()]
+func (de *Design) UpdateAccountSetting(account Setting) error {
+	_, found := de.settings[account.Address().String()]
 	if !found {
 		return common.ErrValueInvalid.Wrap(
 			errors.Errorf("account, %v not registered in service", account.Address()))
 	}
-	de.accounts[account.Address().String()] = account
+	de.settings[account.Address().String()] = account
 
 	return nil
 }
 
-func (de *Design) RemoveAccount(account base.Address) error {
-	_, found := de.accounts[account.String()]
+func (de *Design) RemoveAccountSetting(account base.Address) error {
+	_, found := de.settings[account.String()]
 	if !found {
 		return errors.Errorf("account, %v not registered in service", account)
 	}
 
-	delete(de.accounts, account.String())
+	delete(de.settings, account.String())
 
 	return nil
 }

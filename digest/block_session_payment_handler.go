@@ -22,7 +22,7 @@ func (bs *BlockSession) preparePayment() error {
 				return err
 			}
 			paymentDesignModels = append(paymentDesignModels, j...)
-		case state.IsAccountRecordStateKey(st.Key()):
+		case state.IsDepositRecordStateKey(st.Key()):
 			j, err := bs.handlePaymentAccountRecordState(st)
 			if err != nil {
 				return err
@@ -50,7 +50,7 @@ func (bs *BlockSession) handlePaymentDesignState(st base.State) ([]mongo.WriteMo
 }
 
 func (bs *BlockSession) handlePaymentAccountRecordState(st base.State) ([]mongo.WriteModel, error) {
-	if AccountRecordDoc, err := NewAccountRecordDoc(st, bs.st.Encoder()); err != nil {
+	if AccountRecordDoc, err := NewDepositRecordDoc(st, bs.st.Encoder()); err != nil {
 		return nil, err
 	} else {
 		return []mongo.WriteModel{

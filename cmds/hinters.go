@@ -2,7 +2,7 @@ package cmds
 
 import (
 	currencycmds "github.com/ProtoconNet/mitum-currency/v3/cmds"
-	"github.com/ProtoconNet/mitum-payment/operation/payment"
+	"github.com/ProtoconNet/mitum-payment/operation/deposit"
 	"github.com/ProtoconNet/mitum-payment/state"
 	"github.com/ProtoconNet/mitum-payment/types"
 	"github.com/ProtoconNet/mitum2/util/encoder"
@@ -16,23 +16,23 @@ var AddedHinters = []encoder.DecodeDetail{
 	// revive:disable-next-line:line-length-limit
 
 	{Hint: types.DesignHint, Instance: types.Design{}},
-	{Hint: types.AccountInfoHint, Instance: types.AccountInfo{}},
-	{Hint: types.AccountRecordHint, Instance: types.AccountRecord{}},
+	{Hint: types.SettingHint, Instance: types.Setting{}},
+	{Hint: types.DepositRecordHint, Instance: types.DepositRecord{}},
 
-	{Hint: payment.DepositHint, Instance: payment.Deposit{}},
-	{Hint: payment.RegisterModelHint, Instance: payment.RegisterModel{}},
-	{Hint: payment.TransferHint, Instance: payment.Transfer{}},
-	{Hint: payment.UpdateAccountInfoHint, Instance: payment.UpdateAccountInfo{}},
+	{Hint: deposit.DepositHint, Instance: deposit.Deposit{}},
+	{Hint: deposit.RegisterModelHint, Instance: deposit.RegisterModel{}},
+	{Hint: deposit.TransferHint, Instance: deposit.Transfer{}},
+	{Hint: deposit.WithdrawHint, Instance: deposit.Withdraw{}},
 
 	{Hint: state.DesignStateValueHint, Instance: state.DesignStateValue{}},
-	{Hint: state.AccountRecordStateValueHint, Instance: state.AccountRecordStateValue{}},
+	{Hint: state.DepositRecordStateValueHint, Instance: state.DepositRecordStateValue{}},
 }
 
 var AddedSupportedHinters = []encoder.DecodeDetail{
-	{Hint: payment.DepositFactHint, Instance: payment.DepositFact{}},
-	{Hint: payment.RegisterModelFactHint, Instance: payment.RegisterModelFact{}},
-	{Hint: payment.TransferFactHint, Instance: payment.TransferFact{}},
-	{Hint: payment.UpdateAccountInfoFactHint, Instance: payment.UpdateAccountInfoFact{}},
+	{Hint: deposit.DepositFactHint, Instance: deposit.DepositFact{}},
+	{Hint: deposit.RegisterModelFactHint, Instance: deposit.RegisterModelFact{}},
+	{Hint: deposit.TransferFactHint, Instance: deposit.TransferFact{}},
+	{Hint: deposit.WithdrawFactHint, Instance: deposit.WithdrawFact{}},
 }
 
 func init() {

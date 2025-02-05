@@ -12,14 +12,14 @@ import (
 func (de Design) MarshalBSON() ([]byte, error) {
 	return bsonenc.Marshal(
 		bson.M{
-			"_hint":    de.Hint().String(),
-			"accounts": de.accounts,
+			"_hint":             de.Hint().String(),
+			"transfer_settings": de.settings,
 		})
 }
 
 type DesignBSONUnmarshaler struct {
 	Hint     string   `bson:"_hint"`
-	Accounts bson.Raw `bson:"accounts"`
+	Accounts bson.Raw `bson:"transfer_settings"`
 }
 
 func (de *Design) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
@@ -35,20 +35,20 @@ func (de *Design) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
 		return e.Wrap(err)
 	}
 
-	accounts := make(map[string]AccountInfo)
+	accounts := make(map[string]Setting)
 	m, err := enc.DecodeMap(u.Accounts)
 	if err != nil {
 		return e.Wrap(err)
 	}
 	for k, v := range m {
-		ac, ok := v.(AccountInfo)
+		ac, ok := v.(Setting)
 		if !ok {
-			return e.Wrap(errors.Errorf("expected AccountInfo, not %T", v))
+			return e.Wrap(errors.Errorf("expected Setting, not %T", v))
 		}
 
 		accounts[k] = ac
 	}
-	de.accounts = accounts
+	de.settings = accounts
 
 	err = de.unpack(enc, ht)
 	if err != nil {

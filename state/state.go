@@ -78,119 +78,58 @@ func DesignStateKey(addr string) string {
 }
 
 var (
-	AccountRecordStateValueHint = hint.MustNewHint("mitum-payment-account-record-state-value-v0.0.1")
-	AccountRecordStateKeySuffix = "accountrecord"
+	DepositRecordStateValueHint = hint.MustNewHint("mitum-payment-deposit-record-state-value-v0.0.1")
+	DepositRecordStateKeySuffix = "depositrecord"
 )
 
-type AccountRecordStateValue struct {
+type DepositRecordStateValue struct {
 	hint.BaseHinter
-	AccountRecord types.AccountRecord
+	DepositRecord types.DepositRecord
 }
 
-func NewAccountRecordStateValue(accountRecord types.AccountRecord) AccountRecordStateValue {
-	return AccountRecordStateValue{
-		BaseHinter:    hint.NewBaseHinter(AccountRecordStateValueHint),
-		AccountRecord: accountRecord,
+func NewDepositRecordStateValue(depositInfo types.DepositRecord) DepositRecordStateValue {
+	return DepositRecordStateValue{
+		BaseHinter:    hint.NewBaseHinter(DepositRecordStateValueHint),
+		DepositRecord: depositInfo,
 	}
 }
 
-func (sv AccountRecordStateValue) Hint() hint.Hint {
+func (sv DepositRecordStateValue) Hint() hint.Hint {
 	return sv.BaseHinter.Hint()
 }
 
-func (sv AccountRecordStateValue) IsValid([]byte) error {
-	e := util.ErrInvalid.Errorf("invalid TimeStampLastIdxStateValue")
+func (sv DepositRecordStateValue) IsValid([]byte) error {
+	e := util.ErrInvalid.Errorf("invalid DepositRecordStateValue")
 
-	if err := sv.BaseHinter.IsValid(AccountRecordStateValueHint.Type().Bytes()); err != nil {
+	if err := sv.BaseHinter.IsValid(DepositRecordStateValueHint.Type().Bytes()); err != nil {
 		return e.Wrap(err)
 	}
 
 	return nil
 }
 
-func (sv AccountRecordStateValue) HashBytes() []byte {
-	return util.ConcatBytesSlice(sv.AccountRecord.Bytes())
+func (sv DepositRecordStateValue) HashBytes() []byte {
+	return util.ConcatBytesSlice(sv.DepositRecord.Bytes())
 }
 
-func GetAccountRecordFromState(st base.State) (*types.AccountRecord, error) {
+func GetDepositRecordFromState(st base.State) (*types.DepositRecord, error) {
 	v := st.Value()
 	if v == nil {
 		return nil, errors.Errorf("state value is nil")
 	}
 
-	isv, ok := v.(AccountRecordStateValue)
+	isv, ok := v.(DepositRecordStateValue)
 	if !ok {
-		return nil, errors.Errorf("expected AccountRecordStateValue but, %T", v)
+		return nil, errors.Errorf("expected DepositRecordStateValue but, %T", v)
 	}
 
-	return &isv.AccountRecord, nil
+	return &isv.DepositRecord, nil
 }
 
-func IsAccountRecordStateKey(key string) bool {
-	return strings.HasPrefix(key, PaymentStateKeyPrefix) && strings.HasSuffix(key, AccountRecordStateKeySuffix)
+func IsDepositRecordStateKey(key string) bool {
+	return strings.HasPrefix(key, PaymentStateKeyPrefix) && strings.HasSuffix(key, DepositRecordStateKeySuffix)
 }
 
-func AccountRecordStateKey(addr string, acAddr string) string {
-	return fmt.Sprintf("%s:%s:%s", PaymentStateKey(addr), acAddr, AccountRecordStateKeySuffix)
+func DepositRecordStateKey(addr string, acAddr string) string {
+	return fmt.Sprintf("%s:%s:%s", PaymentStateKey(addr), acAddr, DepositRecordStateKeySuffix)
 }
-
-//var (
-//	ItemStateValueHint = hint.MustNewHint("mitum-payment-item-state-value-v0.0.1")
-//	ItemStateKeySuffix = "item"
-//)
-//
-//type ItemStateValue struct {
-//	hint.BaseHinter
-//	Item types.AccountInfo
-//}
-//
-//func NewItemStateValue(item types.AccountInfo) ItemStateValue {
-//	return ItemStateValue{
-//		BaseHinter: hint.NewBaseHinter(ItemStateValueHint),
-//		Item:       item,
-//	}
-//}
-//
-//func (sv ItemStateValue) Hint() hint.Hint {
-//	return sv.BaseHinter.Hint()
-//}
-//
-//func (sv ItemStateValue) IsValid([]byte) error {
-//	e := util.ErrInvalid.Errorf("invalid ItemStateValue")
-//
-//	if err := sv.BaseHinter.IsValid(ItemStateValueHint.Type().Bytes()); err != nil {
-//		return e.Wrap(err)
-//	}
-//
-//	if err := sv.Item.IsValid(nil); err != nil {
-//		return e.Wrap(err)
-//	}
-//
-//	return nil
-//}
-//
-//func (sv ItemStateValue) HashBytes() []byte {
-//	return sv.Item.Bytes()
-//}
-//
-//func GetItemFromState(st base.State) (types.AccountInfo, error) {
-//	v := st.Value()
-//	if v == nil {
-//		return types.AccountInfo{}, errors.Errorf("State value is nil")
-//	}
-//
-//	ts, ok := v.(ItemStateValue)
-//	if !ok {
-//		return types.AccountInfo{}, common.ErrTypeMismatch.Wrap(errors.Errorf("expected ItemStateValue found, %T", v))
-//	}
-//
-//	return ts.Item, nil
-//}
-//
-//func IsItemStateKey(key string) bool {
-//	return strings.HasPrefix(key, PaymentStateKeyPrefix) && strings.HasSuffix(key, ItemStateKeySuffix)
-//}
-//
-//func ItemStateKey(addr base.Address, pid string, index uint64) string {
-//	return fmt.Sprintf("%s:%s:%s:%s", TimeStampStateKey(addr), pid, strconv.FormatUint(index, 10), ItemStateKeySuffix)
-//}

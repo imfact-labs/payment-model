@@ -4,7 +4,7 @@ import (
 	"context"
 
 	currencycmds "github.com/ProtoconNet/mitum-currency/v3/cmds"
-	"github.com/ProtoconNet/mitum-payment/operation/payment"
+	"github.com/ProtoconNet/mitum-payment/operation/deposit"
 	"github.com/ProtoconNet/mitum2/base"
 	"github.com/ProtoconNet/mitum2/util"
 	"github.com/pkg/errors"
@@ -62,9 +62,9 @@ func (cmd *RegisterModelCommand) parseFlags() error {
 func (cmd *RegisterModelCommand) createOperation() (base.Operation, error) {
 	e := util.StringError("failed to create register-model operation")
 
-	fact := payment.NewRegisterModelFact([]byte(cmd.Token), cmd.sender, cmd.contract, cmd.Currency.CID)
+	fact := deposit.NewRegisterModelFact([]byte(cmd.Token), cmd.sender, cmd.contract, cmd.Currency.CID)
 
-	op, err := payment.NewRegisterModel(fact)
+	op, err := deposit.NewRegisterModel(fact)
 	if err != nil {
 		return nil, e.Wrap(err)
 	}

@@ -3,8 +3,7 @@ package cmds
 import (
 	"context"
 	currencycmds "github.com/ProtoconNet/mitum-currency/v3/cmds"
-	ctypes "github.com/ProtoconNet/mitum-currency/v3/types"
-	"github.com/ProtoconNet/mitum-payment/operation/payment"
+	"github.com/ProtoconNet/mitum-payment/operation/deposit"
 	"github.com/ProtoconNet/mitum2/base"
 	"github.com/ProtoconNet/mitum2/util"
 	"github.com/pkg/errors"
@@ -13,10 +12,11 @@ import (
 type TransferCommand struct {
 	BaseCommand
 	currencycmds.OperationFlags
-	Sender   currencycmds.AddressFlag        `arg:"" name:"sender" help:"sender address" required:"true"`
-	Contract currencycmds.AddressFlag        `arg:"" name:"contract" help:"contract address" required:"true"`
-	Receiver currencycmds.AddressFlag        `arg:"" name:"receiver" help:"receiver address" required:"true"`
-	Amount   currencycmds.CurrencyAmountFlag `arg:"" name:"currency-amount" help:"amount (ex: \"<currency>,<amount>\")"`
+	Sender   currencycmds.AddressFlag    `arg:"" name:"sender" help:"sender address" required:"true"`
+	Contract currencycmds.AddressFlag    `arg:"" name:"contract" help:"contract address" required:"true"`
+	Receiver currencycmds.AddressFlag    `arg:"" name:"receiver" help:"receiver address" required:"true"`
+	Amount   currencycmds.BigFlag        `arg:"" name:"amount" help:"amount" required:"true"`
+	Currency currencycmds.CurrencyIDFlag `arg:"" name:"currency" help:"currency id" required:"true"`
 	sender   base.Address
 	contract base.Address
 	receiver base.Address
@@ -73,14 +73,9 @@ func (cmd *TransferCommand) parseFlags() error {
 func (cmd *TransferCommand) createOperation() (base.Operation, error) { // nolint:dupl
 	e := util.StringError("failed to create transfer operation")
 
-	am := ctypes.NewAmount(cmd.Amount.Big, cmd.Amount.CID)
-	if err := am.IsValid(nil); err != nil {
-		return nil, err
-	}
+	fact := deposit.NewTransferFact([]byte(cmd.Token), cmd.sender, cmd.contract, cmd.receiver, cmd.Amount.Big, cmd.Currency.CID)
 
-	fact := payment.NewTransferFact([]byte(cmd.Token), cmd.sender, cmd.contract, cmd.receiver, am)
-
-	op, err := payment.NewTransfer(fact)
+	op, err := deposit.NewTransfer(fact)
 	if err != nil {
 		return nil, e.Wrap(err)
 	}

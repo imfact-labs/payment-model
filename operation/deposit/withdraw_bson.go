@@ -1,44 +1,37 @@
-package payment
+package deposit
 
 import (
 	"github.com/ProtoconNet/mitum-currency/v3/common"
 	bsonenc "github.com/ProtoconNet/mitum-currency/v3/digest/util/bson"
 	"github.com/ProtoconNet/mitum-currency/v3/operation/extras"
-	ctypes "github.com/ProtoconNet/mitum-currency/v3/types"
 	"github.com/ProtoconNet/mitum2/util/hint"
 	"github.com/ProtoconNet/mitum2/util/valuehash"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func (fact UpdateAccountInfoFact) MarshalBSON() ([]byte, error) {
+func (fact WithdrawFact) MarshalBSON() ([]byte, error) {
 	return bsonenc.Marshal(
 		bson.M{
-			"_hint":          fact.Hint().String(),
-			"hash":           fact.BaseFact.Hash().String(),
-			"token":          fact.BaseFact.Token(),
-			"sender":         fact.sender,
-			"contract":       fact.contract,
-			"transfer_limit": fact.transferLimit,
-			"start_time":     fact.startTime,
-			"end_time":       fact.endTime,
-			"duration":       fact.duration,
-			"currency":       fact.currency,
+			"_hint":            fact.Hint().String(),
+			"hash":             fact.BaseFact.Hash().String(),
+			"token":            fact.BaseFact.Token(),
+			"sender":           fact.sender,
+			"contract":         fact.contract,
+			"deposit_currency": fact.depositCurrency,
+			"currency":         fact.currency,
 		},
 	)
 }
 
-type UpdateAccountInfoFactBSONUnmarshaler struct {
-	Hint          string   `bson:"_hint"`
-	Sender        string   `bson:"sender"`
-	Contract      string   `bson:"contract"`
-	TransferLimit bson.Raw `bson:"transfer_limit"`
-	StartTime     uint64   `bson:"start_time"`
-	EndTime       uint64   `bson:"end_time"`
-	Duration      uint64   `bson:"duration"`
-	Currency      string   `bson:"currency"`
+type WithdrawFactBSONUnmarshaler struct {
+	Hint            string `bson:"_hint"`
+	Sender          string `bson:"sender"`
+	Contract        string `bson:"contract"`
+	DepositCurrency string `bson:"deposit_currency"`
+	Currency        string `bson:"currency"`
 }
 
-func (fact *UpdateAccountInfoFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
+func (fact *WithdrawFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
 	var u common.BaseFactBSONUnmarshaler
 
 	err := enc.Unmarshal(b, &u)
@@ -49,7 +42,7 @@ func (fact *UpdateAccountInfoFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) er
 	fact.BaseFact.SetHash(valuehash.NewBytesFromString(u.Hash))
 	fact.BaseFact.SetToken(u.Token)
 
-	var uf UpdateAccountInfoFactBSONUnmarshaler
+	var uf WithdrawFactBSONUnmarshaler
 	if err := bson.Unmarshal(b, &uf); err != nil {
 		return common.DecorateError(err, common.ErrDecodeBson, *fact)
 	}
@@ -60,15 +53,8 @@ func (fact *UpdateAccountInfoFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) er
 	}
 	fact.BaseHinter = hint.NewBaseHinter(ht)
 
-	var transferLimit ctypes.Amount
-	err = transferLimit.DecodeBSON(uf.TransferLimit, enc)
-	if err != nil {
-		return common.DecorateError(err, common.ErrDecodeBson, *fact)
-	}
-	fact.transferLimit = transferLimit
-
 	if err := fact.unpack(
-		enc, uf.Sender, uf.Contract, uf.StartTime, uf.EndTime, uf.Duration, uf.Currency,
+		enc, uf.Sender, uf.Contract, uf.DepositCurrency, uf.Currency,
 	); err != nil {
 		return common.DecorateError(err, common.ErrDecodeBson, *fact)
 	}
@@ -76,7 +62,7 @@ func (fact *UpdateAccountInfoFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) er
 	return nil
 }
 
-func (op UpdateAccountInfo) MarshalBSON() ([]byte, error) {
+func (op Withdraw) MarshalBSON() ([]byte, error) {
 	return bsonenc.Marshal(
 		bson.M{
 			"_hint": op.Hint().String(),
@@ -86,7 +72,7 @@ func (op UpdateAccountInfo) MarshalBSON() ([]byte, error) {
 		})
 }
 
-func (op *UpdateAccountInfo) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
+func (op *Withdraw) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
 	var ubo common.BaseOperation
 	if err := ubo.DecodeBSON(b, enc); err != nil {
 		return common.DecorateError(err, common.ErrDecodeBson, *op)

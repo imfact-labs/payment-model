@@ -44,71 +44,36 @@ func (sv *DesignStateValue) DecodeJSON(b []byte, enc encoder.Encoder) error {
 	return nil
 }
 
-type AccountRecordStateValueJSONMarshaler struct {
+type DepositRecordStateValueJSONMarshaler struct {
 	hint.BaseHinter
-	AccountRecord types.AccountRecord `json:"account_record"`
+	DepositRecord types.DepositRecord `json:"deposit_info"`
 }
 
-func (sv AccountRecordStateValue) MarshalJSON() ([]byte, error) {
+func (sv DepositRecordStateValue) MarshalJSON() ([]byte, error) {
 	return util.MarshalJSON(
-		AccountRecordStateValueJSONMarshaler(sv),
+		DepositRecordStateValueJSONMarshaler(sv),
 	)
 }
 
-type AccountRecordStateValueJSONUnmarshaler struct {
+type DepositRecordStateValueJSONUnmarshaler struct {
 	Hint          hint.Hint       `json:"_hint"`
-	AccountRecord json.RawMessage `json:"account_record"`
+	DepositRecord json.RawMessage `json:"deposit_info"`
 }
 
-func (sv *AccountRecordStateValue) DecodeJSON(b []byte, enc encoder.Encoder) error {
-	e := util.StringError("failed to decode json of AccountRecordStateValue")
+func (sv *DepositRecordStateValue) DecodeJSON(b []byte, enc encoder.Encoder) error {
+	e := util.StringError("failed to decode json of DepositRecordStateValue")
 
-	var u AccountRecordStateValueJSONUnmarshaler
+	var u DepositRecordStateValueJSONUnmarshaler
 	if err := enc.Unmarshal(b, &u); err != nil {
 		return e.Wrap(err)
 	}
 
 	sv.BaseHinter = hint.NewBaseHinter(u.Hint)
-	var accountRecord types.AccountRecord
-	if err := accountRecord.DecodeJSON(u.AccountRecord, enc); err != nil {
+	var depositInfo types.DepositRecord
+	if err := depositInfo.DecodeJSON(u.DepositRecord, enc); err != nil {
 		return e.Wrap(err)
 	}
-	sv.AccountRecord = accountRecord
+	sv.DepositRecord = depositInfo
 
 	return nil
 }
-
-//type TimeStampItemStateValueJSONMarshaler struct {
-//	hint.BaseHinter
-//	Item types.AccountInfo `json:"timestamp_item"`
-//}
-//
-//func (sv ItemStateValue) MarshalJSON() ([]byte, error) {
-//	return util.MarshalJSON(
-//		TimeStampItemStateValueJSONMarshaler(sv),
-//	)
-//}
-//
-//type ItemStateValueJSONUnmarshaler struct {
-//	Hint          hint.Hint       `json:"_hint"`
-//	TimeStampItem json.RawMessage `json:"timestamp_item"`
-//}
-//
-//func (sv *ItemStateValue) DecodeJSON(b []byte, enc encoder.Encoder) error {
-//	e := util.StringError("decode json of ItemStateValue")
-//
-//	var u ItemStateValueJSONUnmarshaler
-//	if err := enc.Unmarshal(b, &u); err != nil {
-//		return e.Wrap(err)
-//	}
-//
-//	sv.BaseHinter = hint.NewBaseHinter(u.Hint)
-//
-//	var t types.AccountInfo
-//	if err := t.DecodeJSON(u.TimeStampItem, enc); err != nil {
-//		return e.Wrap(err)
-//	}
-//	sv.Item = t
-//
-//	return nil
-//}

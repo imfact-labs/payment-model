@@ -1,4 +1,4 @@
-package payment
+package deposit
 
 import (
 	"github.com/ProtoconNet/mitum-currency/v3/common"
@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func (fact RegisterModelFact) MarshalBSON() ([]byte, error) {
+func (fact TransferFact) MarshalBSON() ([]byte, error) {
 	return bsonenc.Marshal(
 		bson.M{
 			"_hint":    fact.Hint().String(),
@@ -17,19 +17,23 @@ func (fact RegisterModelFact) MarshalBSON() ([]byte, error) {
 			"token":    fact.BaseFact.Token(),
 			"sender":   fact.sender,
 			"contract": fact.contract,
+			"receiver": fact.receiver,
+			"amount":   fact.amount,
 			"currency": fact.currency,
 		},
 	)
 }
 
-type RegisterModelFactBSONUnmarshaler struct {
-	Hint     string `bson:"_hint"`
-	Sender   string `bson:"sender"`
-	Contract string `bson:"contract"`
-	Currency string `bson:"currency"`
+type TransferFactBSONUnmarshaler struct {
+	Hint     string     `bson:"_hint"`
+	Sender   string     `bson:"sender"`
+	Contract string     `bson:"contract"`
+	Receiver string     `bson:"receiver"`
+	Amount   common.Big `bson:"amount"`
+	Currency string     `bson:"currency"`
 }
 
-func (fact *RegisterModelFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
+func (fact *TransferFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
 	var u common.BaseFactBSONUnmarshaler
 
 	err := enc.Unmarshal(b, &u)
@@ -40,7 +44,7 @@ func (fact *RegisterModelFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) error 
 	fact.BaseFact.SetHash(valuehash.NewBytesFromString(u.Hash))
 	fact.BaseFact.SetToken(u.Token)
 
-	var uf RegisterModelFactBSONUnmarshaler
+	var uf TransferFactBSONUnmarshaler
 	if err := bson.Unmarshal(b, &uf); err != nil {
 		return common.DecorateError(err, common.ErrDecodeBson, *fact)
 	}
@@ -50,26 +54,32 @@ func (fact *RegisterModelFact) DecodeBSON(b []byte, enc *bsonenc.Encoder) error 
 		return common.DecorateError(err, common.ErrDecodeBson, *fact)
 	}
 	fact.BaseHinter = hint.NewBaseHinter(ht)
+	fact.amount = uf.Amount
 
-	if err := fact.unpack(enc, uf.Sender, uf.Contract, uf.Currency); err != nil {
+	if err := fact.unpack(
+		enc, uf.Sender, uf.Contract, uf.Receiver, uf.Currency,
+	); err != nil {
+		return common.DecorateError(err, common.ErrDecodeBson, *fact)
+	}
+
+	if err := fact.IsValid(nil); err != nil {
 		return common.DecorateError(err, common.ErrDecodeBson, *fact)
 	}
 
 	return nil
 }
 
-func (op RegisterModel) MarshalBSON() ([]byte, error) {
+func (op Transfer) MarshalBSON() ([]byte, error) {
 	return bsonenc.Marshal(
 		bson.M{
 			"_hint": op.Hint().String(),
 			"hash":  op.Hash().String(),
 			"fact":  op.Fact(),
 			"signs": op.Signs(),
-		},
-	)
+		})
 }
 
-func (op *RegisterModel) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
+func (op *Transfer) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
 	var ubo common.BaseOperation
 	if err := ubo.DecodeBSON(b, enc); err != nil {
 		return common.DecorateError(err, common.ErrDecodeBson, *op)

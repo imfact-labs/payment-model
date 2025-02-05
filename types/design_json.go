@@ -10,19 +10,19 @@ import (
 
 type DesignJSONMarshaler struct {
 	hint.BaseHinter
-	Accounts map[string]AccountInfo `json:"accounts"`
+	Accounts map[string]Setting `json:"transfer_settings"`
 }
 
 func (de Design) MarshalJSON() ([]byte, error) {
 	return util.MarshalJSON(DesignJSONMarshaler{
 		BaseHinter: de.BaseHinter,
-		Accounts:   de.accounts,
+		Accounts:   de.settings,
 	})
 }
 
 type DesignJSONUnmarshaler struct {
 	Hint     hint.Hint       `json:"_hint"`
-	Accounts json.RawMessage `json:"accounts"`
+	Accounts json.RawMessage `json:"transfer_settings"`
 }
 
 func (de *Design) DecodeJSON(b []byte, enc encoder.Encoder) error {
@@ -33,20 +33,20 @@ func (de *Design) DecodeJSON(b []byte, enc encoder.Encoder) error {
 		return e.Wrap(err)
 	}
 
-	accounts := make(map[string]AccountInfo)
+	accounts := make(map[string]Setting)
 	m, err := enc.DecodeMap(u.Accounts)
 	if err != nil {
 		return e.Wrap(err)
 	}
 	for k, v := range m {
-		ac, ok := v.(AccountInfo)
+		ac, ok := v.(Setting)
 		if !ok {
-			return e.Wrap(errors.Errorf("expected AccountInfo, not %T", v))
+			return e.Wrap(errors.Errorf("expected Setting, not %T", v))
 		}
 
 		accounts[k] = ac
 	}
-	de.accounts = accounts
+	de.settings = accounts
 
 	err = de.unpack(enc, u.Hint)
 	if err != nil {

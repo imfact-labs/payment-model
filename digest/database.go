@@ -62,7 +62,7 @@ func AccountInfo(db *cdigest.Database, contract, account string) (*AccountInfoVa
 	)
 	var st base.State
 	var design *types.Design
-	var accountRecord *types.AccountRecord
+	var accountRecord *types.DepositRecord
 	var err error
 	if err := db.MongoClient().GetByFilter(
 		DefaultColNamePaymentAccount,
@@ -78,7 +78,7 @@ func AccountInfo(db *cdigest.Database, contract, account string) (*AccountInfoVa
 		opt,
 	); err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			emptyAccountRecord := types.NewEmptyAccountRecord()
+			emptyAccountRecord := types.NewEmptyDepositRecord()
 			accountRecord = &emptyAccountRecord
 		} else {
 			return nil,
@@ -88,7 +88,7 @@ func AccountInfo(db *cdigest.Database, contract, account string) (*AccountInfoVa
 		}
 	} else {
 		if st != nil {
-			accountRecord, err = state.GetAccountRecordFromState(st)
+			accountRecord, err = state.GetDepositRecordFromState(st)
 			if err != nil {
 				return nil, err
 			}
@@ -100,7 +100,7 @@ func AccountInfo(db *cdigest.Database, contract, account string) (*AccountInfoVa
 		return nil, err
 	}
 
-	accountInfo := design.Account(account)
+	accountInfo := design.AccountSetting(account)
 	if accountInfo == nil {
 		return nil, errors.Errorf("payment account info not found by contract account %s, account %s", contract, account)
 	}

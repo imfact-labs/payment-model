@@ -6,17 +6,17 @@ import (
 	"github.com/ProtoconNet/mitum2/util/hint"
 )
 
-func (t *AccountInfo) unpack(
+func (s *Setting) unpack(
 	enc encoder.Encoder,
 	ht hint.Hint,
 	addr string,
 ) error {
-	t.BaseHinter = hint.NewBaseHinter(ht)
+	s.BaseHinter = hint.NewBaseHinter(ht)
 	address, err := base.DecodeAddress(addr, enc)
 	if err != nil {
 		return err
 	}
-	t.address = address
+	s.address = address
 
 	return nil
 }

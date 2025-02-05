@@ -1,4 +1,4 @@
-package payment
+package deposit
 
 import (
 	"github.com/ProtoconNet/mitum-currency/v3/common"
@@ -19,19 +19,19 @@ type DepositFact struct {
 	base.BaseFact
 	sender        base.Address
 	contract      base.Address
-	amount        ctypes.Amount
+	amount        common.Big
 	transferLimit common.Big
 	startTime     uint64
 	endTime       uint64
 	duration      uint64
+	currency      ctypes.CurrencyID
 }
 
 func NewDepositFact(
 	token []byte,
 	sender, contract base.Address,
-	amount ctypes.Amount,
-	transferLimit common.Big,
-	startTime, endTime, duration uint64,
+	amount, transferLimit common.Big,
+	startTime, endTime, duration uint64, currency ctypes.CurrencyID,
 
 ) DepositFact {
 	bf := base.NewBaseFact(DepositFactHint, token)
@@ -44,6 +44,7 @@ func NewDepositFact(
 		startTime:     startTime,
 		endTime:       endTime,
 		duration:      duration,
+		currency:      currency,
 	}
 	fact.SetHash(fact.GenerateHash())
 
@@ -68,6 +69,7 @@ func (fact DepositFact) Bytes() []byte {
 		util.Uint64ToBytes(fact.startTime),
 		util.Uint64ToBytes(fact.endTime),
 		util.Uint64ToBytes(fact.duration),
+		fact.currency.Bytes(),
 	)
 }
 
@@ -76,16 +78,12 @@ func (fact DepositFact) IsValid(b []byte) error {
 		return common.ErrFactInvalid.Wrap(err)
 	}
 
-	if fact.startTime < 1 {
-		return common.ErrFactInvalid.Wrap(common.ErrValueInvalid.Errorf("start time must be bigger than zero"))
+	if fact.startTime > fact.endTime {
+		return common.ErrFactInvalid.Wrap(common.ErrValueInvalid.Errorf("start time cannot be bigger than end time"))
 	}
 
-	if fact.endTime < 1 {
-		return common.ErrFactInvalid.Wrap(common.ErrValueInvalid.Errorf("end time must be bigger than zero"))
-	}
-
-	if fact.duration < 1 {
-		return common.ErrFactInvalid.Wrap(common.ErrValueInvalid.Errorf("duration must be bigger than zero"))
+	if fact.duration > (fact.endTime - fact.startTime) {
+		return common.ErrFactInvalid.Wrap(common.ErrValueInvalid.Errorf("duration cannot be greater than the difference between start and end time"))
 	}
 
 	if err := util.CheckIsValiders(nil, false,
@@ -93,6 +91,7 @@ func (fact DepositFact) IsValid(b []byte) error {
 		fact.contract,
 		fact.amount,
 		fact.transferLimit,
+		fact.currency,
 	); err != nil {
 		return common.ErrFactInvalid.Wrap(err)
 	}
@@ -116,12 +115,28 @@ func (fact DepositFact) Contract() base.Address {
 	return fact.contract
 }
 
-func (fact DepositFact) Amount() ctypes.Amount {
+func (fact DepositFact) Amount() common.Big {
 	return fact.amount
+}
+
+func (fact DepositFact) Currency() ctypes.CurrencyID {
+	return fact.currency
 }
 
 func (fact DepositFact) TransferLimit() common.Big {
 	return fact.transferLimit
+}
+
+func (fact DepositFact) StartTime() uint64 {
+	return fact.startTime
+}
+
+func (fact DepositFact) EndTime() uint64 {
+	return fact.endTime
+}
+
+func (fact DepositFact) Duration() uint64 {
+	return fact.duration
 }
 
 func (fact DepositFact) Signer() base.Address {
@@ -134,7 +149,7 @@ func (fact DepositFact) Addresses() ([]base.Address, error) {
 
 func (fact DepositFact) FeeBase() map[ctypes.CurrencyID][]common.Big {
 	required := make(map[ctypes.CurrencyID][]common.Big)
-	required[fact.Amount().Currency()] = []common.Big{fact.Amount().Big()}
+	required[fact.Currency()] = []common.Big{fact.Amount()}
 
 	return required
 }

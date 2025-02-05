@@ -45,24 +45,24 @@ func (sv *DesignStateValue) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
 	return nil
 }
 
-func (sv AccountRecordStateValue) MarshalBSON() ([]byte, error) {
+func (sv DepositRecordStateValue) MarshalBSON() ([]byte, error) {
 	return bsonenc.Marshal(
 		bson.M{
-			"_hint":          sv.Hint().String(),
-			"account_record": sv.AccountRecord,
+			"_hint":        sv.Hint().String(),
+			"deposit_info": sv.DepositRecord,
 		},
 	)
 }
 
-type AccountRecordStateValueBSONUnmarshaler struct {
+type DepositRecordStateValueBSONUnmarshaler struct {
 	Hint          string   `bson:"_hint"`
-	AccountRecord bson.Raw `bson:"account_record"`
+	DepositRecord bson.Raw `bson:"deposit_info"`
 }
 
-func (sv *AccountRecordStateValue) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
-	e := util.StringError("decode bson of AccountRecordStateValue")
+func (sv *DepositRecordStateValue) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
+	e := util.StringError("decode bson of DepositRecordStateValue")
 
-	var u AccountRecordStateValueBSONUnmarshaler
+	var u DepositRecordStateValueBSONUnmarshaler
 	if err := enc.Unmarshal(b, &u); err != nil {
 		return e.Wrap(err)
 	}
@@ -73,48 +73,11 @@ func (sv *AccountRecordStateValue) DecodeBSON(b []byte, enc *bsonenc.Encoder) er
 	}
 	sv.BaseHinter = hint.NewBaseHinter(ht)
 
-	var accountRecord types.AccountRecord
-	if err := accountRecord.DecodeBSON(u.AccountRecord, enc); err != nil {
+	var depositInfo types.DepositRecord
+	if err := depositInfo.DecodeBSON(u.DepositRecord, enc); err != nil {
 		return e.Wrap(err)
 	}
-	sv.AccountRecord = accountRecord
+	sv.DepositRecord = depositInfo
 
 	return nil
 }
-
-//func (sv ItemStateValue) MarshalBSON() ([]byte, error) {
-//	return bsonenc.Marshal(
-//		bson.M{
-//			"_hint":          sv.Hint().String(),
-//			"timestamp_item": sv.Item,
-//		},
-//	)
-//}
-//
-//type ItemStateValueBSONUnmarshaler struct {
-//	Hint          string   `bson:"_hint"`
-//	TimeStampItem bson.Raw `bson:"timestamp_item"`
-//}
-//
-//func (sv *ItemStateValue) DecodeBSON(b []byte, enc *bsonenc.Encoder) error {
-//	e := util.StringError("decode bson of ItemStateValue")
-//
-//	var u ItemStateValueBSONUnmarshaler
-//	if err := enc.Unmarshal(b, &u); err != nil {
-//		return e.Wrap(err)
-//	}
-//
-//	ht, err := hint.ParseHint(u.Hint)
-//	if err != nil {
-//		return e.Wrap(err)
-//	}
-//	sv.BaseHinter = hint.NewBaseHinter(ht)
-//
-//	var n types.AccountInfo
-//	if err := n.DecodeBSON(u.TimeStampItem, enc); err != nil {
-//		return e.Wrap(err)
-//	}
-//	sv.Item = n
-//
-//	return nil
-//}

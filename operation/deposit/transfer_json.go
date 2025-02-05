@@ -1,7 +1,6 @@
-package payment
+package deposit
 
 import (
-	"encoding/json"
 	"github.com/ProtoconNet/mitum-currency/v3/common"
 	"github.com/ProtoconNet/mitum-currency/v3/operation/extras"
 	ctypes "github.com/ProtoconNet/mitum-currency/v3/types"
@@ -12,10 +11,11 @@ import (
 
 type TransferFactJSONMarshaler struct {
 	base.BaseFactJSONMarshaler
-	Sender   base.Address  `json:"sender"`
-	Contract base.Address  `json:"contract"`
-	Receiver base.Address  `json:"receiver"`
-	Amount   ctypes.Amount `json:"amount"`
+	Sender   base.Address      `json:"sender"`
+	Contract base.Address      `json:"contract"`
+	Receiver base.Address      `json:"receiver"`
+	Amount   common.Big        `json:"amount"`
+	Currency ctypes.CurrencyID `json:"currency"`
 }
 
 func (fact TransferFact) MarshalJSON() ([]byte, error) {
@@ -25,15 +25,17 @@ func (fact TransferFact) MarshalJSON() ([]byte, error) {
 		Contract:              fact.contract,
 		Receiver:              fact.receiver,
 		Amount:                fact.amount,
+		Currency:              fact.currency,
 	})
 }
 
 type TransferFactJSONUnmarshaler struct {
 	base.BaseFactJSONUnmarshaler
-	Sender   string          `json:"sender"`
-	Contract string          `json:"contract"`
-	Receiver string          `json:"receiver"`
-	Amount   json.RawMessage `json:"amount"`
+	Sender   string     `json:"sender"`
+	Contract string     `json:"contract"`
+	Receiver string     `json:"receiver"`
+	Amount   common.Big `json:"amount"`
+	Currency string     `json:"currency"`
 }
 
 func (fact *TransferFact) DecodeJSON(b []byte, enc encoder.Encoder) error {
@@ -43,16 +45,9 @@ func (fact *TransferFact) DecodeJSON(b []byte, enc encoder.Encoder) error {
 	}
 
 	fact.BaseFact.SetJSONUnmarshaler(u.BaseFactJSONUnmarshaler)
-
-	var amount ctypes.Amount
-	err := amount.DecodeJSON(u.Amount, enc)
-	if err != nil {
-		return common.DecorateError(err, common.ErrDecodeJson, *fact)
-	}
-	fact.amount = amount
-
+	fact.amount = u.Amount
 	if err := fact.unpack(
-		enc, u.Sender, u.Contract, u.Receiver,
+		enc, u.Sender, u.Contract, u.Receiver, u.Currency,
 	); err != nil {
 		return common.DecorateError(err, common.ErrDecodeJson, *fact)
 	}

@@ -1,4 +1,4 @@
-package payment
+package deposit
 
 import (
 	"context"
@@ -75,7 +75,7 @@ func (opp *DepositProcessor) PreProcess(
 				Errorf("%v", err)), nil
 	}
 
-	_, err := cstate.ExistsState(currency.BalanceStateKey(fact.Sender(), fact.Amount().Currency()),
+	_, err := cstate.ExistsState(currency.BalanceStateKey(fact.Sender(), fact.Currency()),
 		fmt.Sprintf("balance of account, %v", fact.Sender()), getStateFunc,
 	)
 	if err != nil {
@@ -84,12 +84,20 @@ func (opp *DepositProcessor) PreProcess(
 				Errorf("%v", err)), nil
 	}
 
-	if err := cstate.CheckExistsState(state.DesignStateKey(fact.Contract().String()), getStateFunc); err != nil {
+	st, _ := cstate.ExistsState(state.DesignStateKey(fact.Contract().String()), "service design", getStateFunc)
+	if err != nil {
 		return nil, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
 				Wrap(common.ErrMServiceNF).Errorf("payment service for contract account %v",
 				fact.Contract(),
 			)), nil
+	}
+	_, err = state.GetDesignFromState(st)
+	if err != nil {
+		return nil, base.NewBaseOperationProcessReasonError(
+			common.ErrMPreProcess.
+				Wrap(common.ErrMStateValInvalid).Errorf(
+				"service design value not found, %q; %v", fact.Contract(), err)), nil
 	}
 
 	return ctx, nil, nil
@@ -101,45 +109,60 @@ func (opp *DepositProcessor) Process( // nolint:dupl
 ) {
 	fact, _ := op.Fact().(DepositFact)
 
-	cid := fact.Amount().Currency()
+	cid := fact.Currency()
 	st, _ := cstate.ExistsState(state.DesignStateKey(fact.Contract().String()), "service design", getStateFunc)
-	design, err := state.GetDesignFromState(st)
-	if err != nil {
-		return nil, base.NewBaseOperationProcessReasonError("service design value not found, %q; %w", fact.Contract(), err), nil
-	}
+	design, _ := state.GetDesignFromState(st)
 
 	var sts []base.StateMergeValue // nolint:prealloc
-	accountInfo := design.Account(fact.Sender().String())
-	if accountInfo != nil {
+	setting := design.AccountSetting(fact.Sender().String())
+	if setting != nil {
 		// additional deposit
-		st, _ := cstate.ExistsState(state.AccountRecordStateKey(fact.Contract().String(), fact.Sender().String()), "account record", getStateFunc)
-		accountRecord, _ := state.GetAccountRecordFromState(st)
-		nAccountRecord := types.NewAccountRecord(fact.Sender())
-		nAmount := ctypes.NewAmount(accountRecord.Amount(cid.String()).Big().Add(fact.Amount().Big()), cid)
-		nAccountRecord.SetAmount(cid.String(), nAmount)
-		nAccountRecord.SetLastTime(cid.String(), *accountRecord.LastTime(cid.String()))
-
-		if err := nAccountRecord.IsValid(nil); err != nil {
-			return nil, base.NewBaseOperationProcessReasonError("invalid record of account, %v in contract account, %v: %w", fact.Sender(), fact.Contract(), err), nil
+		st, _ := cstate.ExistsState(state.DepositRecordStateKey(
+			fact.Contract().String(), fact.Sender().String()), "account record", getStateFunc)
+		record, _ := state.GetDepositRecordFromState(st)
+		nRecord := types.NewDepositRecord(fact.Sender())
+		amount := record.Amount(cid.String())
+		if amount == nil {
+			return nil, base.NewBaseOperationProcessReasonError(
+				"record of account, %v nof found in contract account, %v", fact.Sender(), fact.Contract()), nil
 		}
-		// update AccountRecord
+		nRecord.SetItem(cid.String(), *record.Amount(cid.String()), *record.TransferredAt(cid.String()))
+
+		if err := nRecord.IsValid(nil); err != nil {
+			return nil, base.NewBaseOperationProcessReasonError(
+				"invalid record of account, %v in contract account, %v: %w", fact.Sender(), fact.Contract(), err), nil
+		}
+		// update Record
 		sts = append(sts, cstate.NewStateMergeValue(
-			state.AccountRecordStateKey(fact.Contract().String(), fact.Sender().String()),
-			state.NewAccountRecordStateValue(nAccountRecord),
+			state.DepositRecordStateKey(fact.Contract().String(), fact.Sender().String()),
+			state.NewDepositRecordStateValue(nRecord),
 		))
+
+		if !fact.TransferLimit().IsZero() || fact.startTime > 0 || fact.endTime > 0 || fact.duration > 0 {
+			// update AccountSetting
+			nSetting := types.NewSettings(fact.Sender())
+			nSetting.SetItem(cid.String(), fact.TransferLimit(), fact.StartTime(), fact.EndTime(), fact.Duration())
+			design.UpdateAccountSetting(nSetting)
+
+			sts = append(sts, cstate.NewStateMergeValue(
+				state.DesignStateKey(fact.Contract().String()),
+				state.NewDesignStateValue(design),
+			))
+		}
 	} else {
 		// new deposit
-		accountInfo := types.NewAccountInfo(fact.Sender())
-		amount := ctypes.NewAmount(fact.TransferLimit(), fact.Amount().Currency())
-		accountInfo.SetTransferLimit(amount)
-		accountInfo.SetPeriodTime(
-			fact.Amount().Currency().String(),
-			[3]uint64{fact.startTime, fact.endTime, fact.duration},
-		)
-		err = design.AddAccount(accountInfo)
+		if fact.TransferLimit().IsZero() && fact.startTime == 0 && fact.endTime == 0 && fact.duration == 0 {
+			return nil, base.NewBaseOperationProcessReasonError(
+				"Fresh deposit cannot be set with 0(transfer limit), 0(start time), 0(end_time), 0(duration) setting of account, %v in contract account %v",
+				fact.Sender(), fact.Contract(),
+			), nil
+		}
+		nSetting := types.NewSettings(fact.Sender())
+		nSetting.SetItem(cid.String(), fact.TransferLimit(), fact.StartTime(), fact.EndTime(), fact.Duration())
+		err := design.AddAccountSetting(nSetting)
 		if err != nil {
 			return nil, base.NewBaseOperationProcessReasonError(
-				"failed to add info of account, %v in contract account %v: %w", fact.Sender(), fact.Contract(), err,
+				"failed to add setting of account, %v in contract account %v: %w", fact.Sender(), fact.Contract(), err,
 			), nil
 		}
 		if err := design.IsValid(nil); err != nil {
@@ -152,41 +175,42 @@ func (opp *DepositProcessor) Process( // nolint:dupl
 		))
 
 		// new AccountRecord
-		nAccountRecord := types.NewAccountRecord(fact.Sender())
-		nAccountRecord.SetAmount(cid.String(), fact.Amount())
-		nAccountRecord.SetLastTime(cid.String(), 0)
+		nRecord := types.NewDepositRecord(fact.Sender())
+		nRecord.SetItem(cid.String(), fact.Amount(), 0)
 
-		if err := nAccountRecord.IsValid(nil); err != nil {
-			return nil, base.NewBaseOperationProcessReasonError("invalid record of account, %v in contract account, %v; %w", fact.Sender(), fact.Contract(), err), nil
+		if err := nRecord.IsValid(nil); err != nil {
+			return nil, base.NewBaseOperationProcessReasonError(
+				"invalid record of account, %v in contract account, %v; %w", fact.Sender(), fact.Contract(), err), nil
 		}
 
 		sts = append(sts, cstate.NewStateMergeValue(
-			state.AccountRecordStateKey(fact.Contract().String(), fact.Sender().String()),
-			state.NewAccountRecordStateValue(nAccountRecord),
+			state.DepositRecordStateKey(fact.Contract().String(), fact.Sender().String()),
+			state.NewDepositRecordStateValue(nRecord),
 		))
 
 	}
 
+	am := ctypes.NewAmount(fact.Amount(), cid)
 	sts = append(
 		sts,
 		common.NewBaseStateMergeValue(
-			currency.BalanceStateKey(fact.Sender(), fact.Amount().Currency()),
-			currency.NewDeductBalanceStateValue(fact.Amount()),
+			currency.BalanceStateKey(fact.Sender(), cid),
+			currency.NewDeductBalanceStateValue(am),
 			func(height base.Height, st base.State) base.StateValueMerger {
 				return currency.NewBalanceStateValueMerger(
-					height, currency.BalanceStateKey(fact.Sender(), fact.Amount().Currency()),
-					fact.Amount().Currency(), st,
+					height, currency.BalanceStateKey(fact.Sender(), cid),
+					cid, st,
 				)
 			}),
 	)
 
 	sts = append(sts, common.NewBaseStateMergeValue(
-		currency.BalanceStateKey(fact.Contract(), fact.Amount().Currency()),
-		currency.NewAddBalanceStateValue(fact.Amount()),
+		currency.BalanceStateKey(fact.Contract(), cid),
+		currency.NewAddBalanceStateValue(am),
 		func(height base.Height, st base.State) base.StateValueMerger {
 			return currency.NewBalanceStateValueMerger(height,
-				currency.BalanceStateKey(fact.Contract(), fact.Amount().Currency()),
-				fact.Amount().Currency(), st,
+				currency.BalanceStateKey(fact.Contract(), cid),
+				cid, st,
 			)
 		},
 	))
