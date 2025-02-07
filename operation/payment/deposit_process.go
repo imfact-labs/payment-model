@@ -132,14 +132,23 @@ func (opp *DepositProcessor) Process( // nolint:dupl
 		st, _ := cstate.ExistsState(state.DepositRecordStateKey(
 			fact.Contract().String(), fact.Sender().String()), "account record", getStateFunc)
 		record, _ := state.GetDepositRecordFromState(st)
-		nRecord := types.NewDepositRecord(fact.Sender())
 		amount := record.Amount(cid.String())
+
+		var nAmount common.Big
+		var nTransfferdAt uint64
 		if amount == nil {
-			return nil, base.NewBaseOperationProcessReasonError(
-				"record of account, %v nof found in contract account, %v", fact.Sender(), fact.Contract()), nil
+			nAmount = fact.Amount()
+			nTransfferdAt = 0
+		} else {
+			nAmount = amount.Add(fact.Amount())
+			nTransfferdAt = *record.TransferredAt(cid.String())
 		}
-		nAmount := record.Amount(cid.String()).Add(fact.Amount())
-		nRecord.SetItem(cid.String(), nAmount, *record.TransferredAt(cid.String()))
+
+		nRecord := types.NewDepositRecord(fact.Sender())
+		for k, v := range record.Items() {
+			nRecord.SetItem(k, v.Amount, v.TransferredAt)
+		}
+		nRecord.SetItem(cid.String(), nAmount, nTransfferdAt)
 
 		if err := nRecord.IsValid(nil); err != nil {
 			return nil, base.NewBaseOperationProcessReasonError(
@@ -153,6 +162,9 @@ func (opp *DepositProcessor) Process( // nolint:dupl
 
 		// update AccountSetting
 		nSetting := types.NewSettings(fact.Sender())
+		for k, v := range setting.Items() {
+			nSetting.SetItem(k, v.TransferLimit, v.StartTime, v.EndTime, v.Duration)
+		}
 		nSetting.SetItem(cid.String(), fact.TransferLimit(), fact.StartTime(), fact.EndTime(), fact.Duration())
 		nDesign := types.NewDesign()
 		for _, v := range design.AccountSettings() {

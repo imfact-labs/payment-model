@@ -28,11 +28,13 @@ func (Withdraw) Process(
 
 type WithdrawProcessor struct {
 	*base.BaseOperationProcessor
+	proposal *base.ProposalSignFact
 }
 
-func NewWithdrawProcessor() ctypes.GetNewProcessor {
+func NewWithdrawProcessor() ctypes.GetNewProcessorWithProposal {
 	return func(
 		height base.Height,
+		proposal *base.ProposalSignFact,
 		getStateFunc base.GetStateFunc,
 		newPreProcessConstraintFunc base.NewOperationProcessorProcessFunc,
 		newProcessConstraintFunc base.NewOperationProcessorProcessFunc,
@@ -52,6 +54,7 @@ func NewWithdrawProcessor() ctypes.GetNewProcessor {
 		}
 
 		opp.BaseOperationProcessor = b
+		opp.proposal = proposal
 
 		return opp, nil
 	}
@@ -102,6 +105,15 @@ func (opp *WithdrawProcessor) PreProcess(
 			)), nil
 	}
 
+	big := setting.TransferLimit(cid.String())
+	if big == nil {
+		return nil, base.NewBaseOperationProcessReasonError(
+			common.ErrMPreProcess.
+				Wrap(common.ErrMValueInvalid).Errorf("setting for currency, %v of account, %v not found in contract account %v",
+				cid, fact.Sender(), fact.Contract(),
+			)), nil
+	}
+
 	st, err = cstate.ExistsState(
 		state.DepositRecordStateKey(fact.Contract().String(), fact.Sender().String()),
 		"account record", getStateFunc)
@@ -140,30 +152,61 @@ func (opp *WithdrawProcessor) Process( // nolint:dupl
 ) {
 	fact, _ := op.Fact().(WithdrawFact)
 
+	var sts []base.StateMergeValue // nolint:prealloc
+	proposal := *opp.proposal
+	nowTime := uint64(proposal.ProposalFact().ProposedAt().Unix())
 	cid := fact.Currency()
 	st, _ := cstate.ExistsState(state.DesignStateKey(fact.Contract().String()), "service design", getStateFunc)
 	design, _ := state.GetDesignFromState(st)
+	setting := design.AccountSetting(fact.Sender().String())
+	nSetting := types.NewSettings(fact.Sender())
+	for k, v := range setting.Items() {
+		nSetting.SetItem(k, v.TransferLimit, v.StartTime, v.EndTime, v.Duration)
+	}
+	nSetting.Remove(cid.String())
+	nDesign := types.NewDesign()
+	for _, v := range design.AccountSettings() {
+		nDesign.AddAccountSetting(v)
+	}
+	if len(nSetting.Items()) < 1 {
+		nDesign.RemoveAccountSetting(fact.Sender())
+		if err := nDesign.IsValid(nil); err != nil {
+			return nil, base.NewBaseOperationProcessReasonError("invalid service design, %q; %w", fact.Contract(), err), nil
+		}
+	} else {
+		nDesign.UpdateAccountSetting(nSetting)
+		if err := nDesign.IsValid(nil); err != nil {
+			return nil, base.NewBaseOperationProcessReasonError("invalid service design, %q; %w", fact.Contract(), err), nil
+		}
+	}
+	// update Design
+	sts = append(sts, cstate.NewStateMergeValue(
+		state.DesignStateKey(fact.Contract().String()),
+		state.NewDesignStateValue(nDesign),
+	))
+
 	st, _ = cstate.ExistsState(
 		state.DepositRecordStateKey(fact.Contract().String(), fact.Sender().String()),
 		"account record", getStateFunc)
 	record, _ := state.GetDepositRecordFromState(st)
 	big := record.Amount(cid.String())
-	am := ctypes.NewAmount(*big, cid)
-
-	nDesign := types.NewDesign()
-	for _, v := range design.AccountSettings() {
-		nDesign.AddAccountSetting(v)
+	nRecord := types.NewDepositRecord(fact.Sender())
+	for k, v := range record.Items() {
+		nRecord.SetItem(k, v.Amount, v.TransferredAt)
 	}
-	nDesign.RemoveAccountSetting(fact.Sender())
-	if err := nDesign.IsValid(nil); err != nil {
-		return nil, base.NewBaseOperationProcessReasonError("invalid service design, %q; %w", fact.Contract(), err), nil
-	}
+	nRecord.SetItem(cid.String(), common.ZeroBig, nowTime)
 
-	var sts []base.StateMergeValue // nolint:prealloc
+	if err := nRecord.IsValid(nil); err != nil {
+		return nil, base.NewBaseOperationProcessReasonError(
+			"invalid record of account, %v in contract account, %v: %w", fact.Sender(), fact.Contract(), err), nil
+	}
+	// update Record
 	sts = append(sts, cstate.NewStateMergeValue(
-		state.DesignStateKey(fact.Contract().String()),
-		state.NewDesignStateValue(nDesign),
+		state.DepositRecordStateKey(fact.Contract().String(), fact.Sender().String()),
+		state.NewDepositRecordStateValue(nRecord),
 	))
+
+	am := ctypes.NewAmount(*big, cid)
 	sts = append(
 		sts,
 		common.NewBaseStateMergeValue(
@@ -192,6 +235,7 @@ func (opp *WithdrawProcessor) Process( // nolint:dupl
 }
 
 func (opp *WithdrawProcessor) Close() error {
+	opp.proposal = nil
 	withdrawProcessorPool.Put(opp)
 
 	return nil

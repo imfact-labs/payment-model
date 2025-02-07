@@ -69,6 +69,10 @@ func (s Setting) Address() base.Address {
 	return s.address
 }
 
+func (s Setting) Items() map[string]SettingItem {
+	return s.items
+}
+
 func (s *Setting) SetItem(cid string, tLimit common.Big, startTime, endTime, duration uint64) {
 	s.items[cid] = NewSettingItem(tLimit, startTime, endTime, duration)
 }
@@ -90,6 +94,16 @@ func (s Setting) PeriodTime(cid string) *[3]uint64 {
 	pTime := [3]uint64{pt.StartTime, pt.EndTime, pt.Duration}
 
 	return &pTime
+}
+
+func (s *Setting) Remove(cid string) error {
+	_, found := s.items[cid]
+	if !found {
+		return nil
+	}
+	delete(s.items, cid)
+
+	return nil
 }
 
 type SettingItem struct {

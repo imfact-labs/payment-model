@@ -53,7 +53,7 @@ func POperationProcessorsMap(pctx context.Context) (context.Context, error) {
 		payment.NewDepositProcessor(),
 	); err != nil {
 		return pctx, err
-	} else if err := opr.SetProcessor(
+	} else if err := opr.SetProcessorWithProposal(
 		payment.WithdrawHint,
 		payment.NewWithdrawProcessor(),
 	); err != nil {
@@ -88,7 +88,10 @@ func POperationProcessorsMap(pctx context.Context) (context.Context, error) {
 		)
 	})
 
-	_ = setA.Add(payment.WithdrawHint, func(height base.Height, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
+	_ = setB.Add(payment.WithdrawHint, func(height base.Height, proposal base.ProposalSignFact, getStatef base.GetStateFunc) (base.OperationProcessor, error) {
+		if err := opr.SetProposal(&proposal); err != nil {
+			return nil, err
+		}
 		return opr.New(
 			height,
 			getStatef,

@@ -75,6 +75,10 @@ func (d DepositRecord) Address() base.Address {
 	return d.address
 }
 
+func (d DepositRecord) Items() map[string]DepositRecordItem {
+	return d.items
+}
+
 func (d *DepositRecord) SetItem(cid string, am common.Big, ts uint64) {
 	d.items[cid] = NewDepositRecordItem(am, ts)
 }

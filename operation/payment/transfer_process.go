@@ -113,7 +113,13 @@ func (opp *TransferProcessor) PreProcess(
 				Wrap(common.ErrMValueInvalid).Errorf("setting of account, %v not found in contract account %v",
 				fact.Sender(), fact.Contract(),
 			)), nil
-	} else if tLimit := setting.TransferLimit(cid.String()); tLimit.Compare(fact.Amount()) < 0 {
+	} else if tLimit := setting.TransferLimit(cid.String()); tLimit == nil {
+		return nil, base.NewBaseOperationProcessReasonError(
+			common.ErrMPreProcess.
+				Wrap(common.ErrMValueInvalid).Errorf("setting for currency, %v of account, %v not found in contract account %v",
+				cid, fact.Sender(), fact.Contract(),
+			)), nil
+	} else if tLimit.Compare(fact.Amount()) < 0 {
 		return nil, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
 				Wrap(common.ErrMValueInvalid).Errorf(
@@ -144,8 +150,8 @@ func (opp *TransferProcessor) PreProcess(
 	if amount == nil {
 		return nil, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
-				Wrap(common.ErrMValueInvalid).Errorf("deposit of account, %v not found in contract account %v",
-				fact.Sender(), fact.Contract(),
+				Wrap(common.ErrMValueInvalid).Errorf("deposit for currency, %v of account, %v not found in contract account %v",
+				cid, fact.Sender(), fact.Contract(),
 			)), nil
 	} else if amount.Compare(fact.Amount()) < 0 {
 		return nil, base.NewBaseOperationProcessReasonError(
@@ -206,6 +212,9 @@ func (opp *TransferProcessor) Process( // nolint:dupl
 
 	nAmount := record.Amount(cid.String()).Sub(fact.Amount())
 	nRecord := types.NewDepositRecord(fact.Sender())
+	for k, v := range record.Items() {
+		nRecord.SetItem(k, v.Amount, v.TransferredAt)
+	}
 	nRecord.SetItem(cid.String(), nAmount, nowTime)
 
 	if err := nRecord.IsValid(nil); err != nil {

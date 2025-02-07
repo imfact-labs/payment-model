@@ -60,6 +60,8 @@ func (opp *UpdateAccountSettingProcessor) PreProcess(
 	ctx context.Context, op base.Operation, getStateFunc base.GetStateFunc,
 ) (context.Context, base.OperationProcessReasonError, error) {
 	fact, ok := op.Fact().(UpdateAccountSettingFact)
+
+	cid := fact.Currency()
 	if !ok {
 		return ctx, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
@@ -100,6 +102,15 @@ func (opp *UpdateAccountSettingProcessor) PreProcess(
 			)), nil
 	}
 
+	big := setting.TransferLimit(cid.String())
+	if big == nil {
+		return nil, base.NewBaseOperationProcessReasonError(
+			common.ErrMPreProcess.
+				Wrap(common.ErrMValueInvalid).Errorf("setting for currency, %v of account, %v not found in contract account %v",
+				cid, fact.Sender(), fact.Contract(),
+			)), nil
+	}
+
 	return ctx, nil, nil
 }
 
@@ -109,11 +120,15 @@ func (opp *UpdateAccountSettingProcessor) Process( // nolint:dupl
 ) {
 	fact, _ := op.Fact().(UpdateAccountSettingFact)
 
+	cid := fact.Currency()
 	st, _ := cstate.ExistsState(state.DesignStateKey(fact.Contract().String()), "service design", getStateFunc)
 	design, _ := state.GetDesignFromState(st)
-
+	setting := design.AccountSetting(fact.Sender().String())
 	nSetting := types.NewSettings(fact.Sender())
-	nSetting.SetItem(fact.Currency().String(), fact.TransferLimit(), fact.StartTime(), fact.EndTime(), fact.Duration())
+	for k, v := range setting.Items() {
+		nSetting.SetItem(k, v.TransferLimit, v.StartTime, v.EndTime, v.Duration)
+	}
+	nSetting.SetItem(cid.String(), fact.TransferLimit(), fact.StartTime(), fact.EndTime(), fact.Duration())
 
 	nDesign := types.NewDesign()
 	for _, v := range design.AccountSettings() {
