@@ -80,7 +80,7 @@ func (opp *DepositProcessor) PreProcess(
 	)
 	if err != nil {
 		return ctx, base.NewBaseOperationProcessReasonError(
-			common.ErrMPreProcess.
+			common.ErrMPreProcess.Wrap(common.ErrMStateNF).
 				Errorf("%v", err)), nil
 	}
 
