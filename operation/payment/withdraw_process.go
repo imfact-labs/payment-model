@@ -82,7 +82,7 @@ func (opp *WithdrawProcessor) PreProcess(
 	if err != nil {
 		return nil, base.NewBaseOperationProcessReasonError(
 			common.ErrMPreProcess.
-				Wrap(common.ErrMServiceNF).Errorf("service for contract account %v",
+				Wrap(common.ErrMServiceNF).Errorf("payment service state for contract account %v",
 				fact.Contract(),
 			)), nil
 	}
