@@ -107,6 +107,10 @@ func (fact WithdrawFact) FeePayer() base.Address {
 	return fact.sender
 }
 
+func (fact WithdrawFact) FeeItemCount() (uint, bool) {
+	return extras.ZeroItem, extras.HasNoItem
+}
+
 func (fact WithdrawFact) FactUser() base.Address {
 	return fact.sender
 }

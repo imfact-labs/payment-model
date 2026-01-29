@@ -2,7 +2,6 @@ package payment
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/ProtoconNet/mitum-currency/v3/common"
@@ -104,7 +103,6 @@ func (opp *RegisterModelProcessor) Process(
 	nca := ca.SetActive(true)
 	nca = nca.SetBalanceStatus(currencytypes.WithdrawalBlocked)
 
-	fmt.Println(nca.BalanceStatus())
 	sts = append(sts, cstate.NewStateMergeValue(
 		cestate.StateKeyContractAccount(fact.Contract()),
 		cestate.NewContractAccountStateValue(nca),
