@@ -1,25 +1,25 @@
-### mitum-deposit
+### payment-model
 
-*mitum-deposit* is a payment contract model based on the second version of mitum(aka [mitum2](https://github.com/ProtoconNet/mitum2)).
+*payment-model* is a payment contract model based on [mitum](https://github.com/imfact-labs/mitum2)).
 
 #### Installation
 
-Before you build `mitum-deposit`, make sure to run mongodb for digest api.
+Before you build `payment-model`, make sure to run mongodb for digest api.
 
 ```sh
-$ git clone https://github.com/ProtoconNet/mitum-deposit
+$ git clone https://github.com/imfact-labs/payment-model
 
-$ cd mitum-deposit
+$ cd payment-model
 
-$ go build -o ./mitum-deposit
+$ go build -o ./imfact ./main.go
 ```
 
 #### Run
 
 ```sh
-$ ./mitum-deposit init --design=<config file> <genesis file>
+$ ./imfact init --design=<config file> <genesis file>
 
-$ ./mitum-deposit run <config file> --dev.allow-consensus
+$ ./imfact run <config file> --dev.allow-consensus
 ```
 
 [standalong.yml](standalone.yml) is a sample of `config file`.

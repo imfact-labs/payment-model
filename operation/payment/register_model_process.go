@@ -4,14 +4,14 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ProtoconNet/mitum-currency/v3/common"
-	cstate "github.com/ProtoconNet/mitum-currency/v3/state"
-	cestate "github.com/ProtoconNet/mitum-currency/v3/state/extension"
-	ctypes "github.com/ProtoconNet/mitum-currency/v3/types"
-	"github.com/ProtoconNet/mitum-payment/state"
-	"github.com/ProtoconNet/mitum-payment/types"
-	"github.com/ProtoconNet/mitum2/base"
-	"github.com/ProtoconNet/mitum2/util"
+	"github.com/imfact-labs/currency-model/common"
+	cstate "github.com/imfact-labs/currency-model/state"
+	cestate "github.com/imfact-labs/currency-model/state/extension"
+	ctypes "github.com/imfact-labs/currency-model/types"
+	"github.com/imfact-labs/mitum2/base"
+	"github.com/imfact-labs/mitum2/util"
+	"github.com/imfact-labs/payment-model/state"
+	"github.com/imfact-labs/payment-model/types"
 	"github.com/pkg/errors"
 )
 

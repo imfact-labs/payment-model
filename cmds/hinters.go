@@ -1,11 +1,11 @@
 package cmds
 
 import (
-	ccmds "github.com/ProtoconNet/mitum-currency/v3/cmds"
-	"github.com/ProtoconNet/mitum-payment/operation/payment"
-	"github.com/ProtoconNet/mitum-payment/state"
-	"github.com/ProtoconNet/mitum-payment/types"
-	"github.com/ProtoconNet/mitum2/util/encoder"
+	ccmds "github.com/imfact-labs/currency-model/app/cmds"
+	"github.com/imfact-labs/mitum2/util/encoder"
+	"github.com/imfact-labs/payment-model/operation/payment"
+	"github.com/imfact-labs/payment-model/state"
+	"github.com/imfact-labs/payment-model/types"
 	"github.com/pkg/errors"
 )
 

@@ -1,13 +1,13 @@
 package payment
 
 import (
-	"github.com/ProtoconNet/mitum-currency/v3/common"
-	"github.com/ProtoconNet/mitum-currency/v3/operation/extras"
-	"github.com/ProtoconNet/mitum-currency/v3/types"
-	"github.com/ProtoconNet/mitum2/base"
-	"github.com/ProtoconNet/mitum2/util"
-	"github.com/ProtoconNet/mitum2/util/hint"
-	"github.com/ProtoconNet/mitum2/util/valuehash"
+	"github.com/imfact-labs/currency-model/common"
+	"github.com/imfact-labs/currency-model/operation/extras"
+	"github.com/imfact-labs/currency-model/types"
+	"github.com/imfact-labs/mitum2/base"
+	"github.com/imfact-labs/mitum2/util"
+	"github.com/imfact-labs/mitum2/util/hint"
+	"github.com/imfact-labs/mitum2/util/valuehash"
 	"github.com/pkg/errors"
 )
 
@@ -118,6 +118,14 @@ func (fact RegisterModelFact) Signer() base.Address {
 
 func (fact RegisterModelFact) InActiveContractOwnerHandlerOnly() [][2]base.Address {
 	return [][2]base.Address{{fact.contract, fact.sender}}
+}
+
+func (fact RegisterModelFact) DupKey() (map[types.DuplicationKeyType][]string, error) {
+	r := make(map[types.DuplicationKeyType][]string)
+	r[extras.DuplicationKeyTypeSender] = []string{fact.sender.String()}
+	r[extras.DuplicationKeyTypeContractStatus] = []string{fact.contract.String()}
+
+	return r, nil
 }
 
 func (fact RegisterModelFact) Currency() types.CurrencyID {
