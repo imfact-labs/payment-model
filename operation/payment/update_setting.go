@@ -159,7 +159,6 @@ func (fact UpdateAccountSettingFact) ActiveContract() []base.Address {
 
 func (fact UpdateAccountSettingFact) DupKey() (map[ctypes.DuplicationKeyType][]string, error) {
 	r := make(map[ctypes.DuplicationKeyType][]string)
-	r[extras.DuplicationKeyTypeSender] = []string{fact.sender.String()}
 	r[extras.DuplicationKeyTypeContractStatus] = []string{fact.contract.String()}
 
 	return r, nil
@@ -167,6 +166,16 @@ func (fact UpdateAccountSettingFact) DupKey() (map[ctypes.DuplicationKeyType][]s
 
 type UpdateAccountSetting struct {
 	extras.ExtendedOperation
+}
+
+func (op UpdateAccountSetting) DupKey() (map[ctypes.DuplicationKeyType][]string, error) {
+	r := make(map[ctypes.DuplicationKeyType][]string)
+
+	if err := extras.AddOperationFeePayerDupKeys(r, op); err != nil {
+		return nil, err
+	}
+
+	return r, nil
 }
 
 func NewUpdateAccountSetting(fact UpdateAccountSettingFact) (UpdateAccountSetting, error) {

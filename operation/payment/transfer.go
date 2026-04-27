@@ -1,6 +1,8 @@
 package payment
 
 import (
+	"fmt"
+
 	"github.com/imfact-labs/currency-model/common"
 	"github.com/imfact-labs/currency-model/operation/extras"
 	ctypes "github.com/imfact-labs/currency-model/types"
@@ -138,14 +140,67 @@ func (fact TransferFact) ActiveContract() []base.Address {
 
 func (fact TransferFact) DupKey() (map[ctypes.DuplicationKeyType][]string, error) {
 	r := make(map[ctypes.DuplicationKeyType][]string)
-	r[extras.DuplicationKeyTypeSender] = []string{fact.sender.String()}
-	r[extras.DuplicationKeyTypeContractWithdraw] = []string{fact.contract.String()}
+
+	r[extras.DuplicationKeyTypeContractWithdraw] = []string{
+		fmt.Sprintf("%s:%s", fact.contract.String(), fact.currency.String())}
 
 	return r, nil
 }
 
 type Transfer struct {
 	extras.ExtendedOperation
+}
+
+func (op Transfer) DupKey() (map[ctypes.DuplicationKeyType][]string, error) {
+	r := make(map[ctypes.DuplicationKeyType][]string)
+
+	if err := extras.AddOperationFeePayerDupKeys(r, op); err != nil {
+		return nil, err
+	}
+
+	factDupKeyer, ok := op.Fact().(extras.DeDupeKeyer)
+	if !ok {
+		return nil, errors.Errorf("%T does not implement DeDupeKeyer", op.Fact())
+	}
+
+	factDupKeys, err := factDupKeyer.DupKey()
+	if err != nil {
+		return nil, err
+	}
+
+	remainingContractWithdrawKeys := excludeDuplicatedContractWithdrawKeys(
+		r[extras.DuplicationKeyTypeContractWithdraw],
+		factDupKeys[extras.DuplicationKeyTypeContractWithdraw],
+	)
+	if len(remainingContractWithdrawKeys) == 0 {
+		delete(r, extras.DuplicationKeyTypeContractWithdraw)
+	} else {
+		r[extras.DuplicationKeyTypeContractWithdraw] = remainingContractWithdrawKeys
+	}
+
+	return r, nil
+}
+
+func excludeDuplicatedContractWithdrawKeys(candidateKeys, duplicatedKeys []string) []string {
+	if len(candidateKeys) == 0 || len(duplicatedKeys) == 0 {
+		return candidateKeys
+	}
+
+	duplicatedKeySet := make(map[string]struct{}, len(duplicatedKeys))
+	for _, duplicatedKey := range duplicatedKeys {
+		duplicatedKeySet[duplicatedKey] = struct{}{}
+	}
+
+	filteredKeys := make([]string, 0, len(candidateKeys))
+	for _, candidateKey := range candidateKeys {
+		if _, found := duplicatedKeySet[candidateKey]; found {
+			continue
+		}
+
+		filteredKeys = append(filteredKeys, candidateKey)
+	}
+
+	return filteredKeys
 }
 
 func NewTransfer(fact base.Fact) (Transfer, error) {

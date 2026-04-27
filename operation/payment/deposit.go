@@ -1,6 +1,8 @@
 package payment
 
 import (
+	"fmt"
+
 	"github.com/imfact-labs/currency-model/common"
 	"github.com/imfact-labs/currency-model/operation/extras"
 	ctypes "github.com/imfact-labs/currency-model/types"
@@ -174,13 +176,23 @@ func (fact DepositFact) ActiveContract() []base.Address {
 
 func (fact DepositFact) DupKey() (map[ctypes.DuplicationKeyType][]string, error) {
 	r := make(map[ctypes.DuplicationKeyType][]string)
-	r[extras.DuplicationKeyTypeSender] = []string{fact.sender.String()}
+	r[extras.DuplicationKeyTypeSender] = []string{fmt.Sprintf("%s:%s", fact.sender.String(), fact.currency.String())}
 
 	return r, nil
 }
 
 type Deposit struct {
 	extras.ExtendedOperation
+}
+
+func (op Deposit) DupKey() (map[ctypes.DuplicationKeyType][]string, error) {
+	r := make(map[ctypes.DuplicationKeyType][]string)
+
+	if err := extras.AddOperationFeePayerDupKeys(r, op); err != nil {
+		return nil, err
+	}
+
+	return r, nil
 }
 
 func NewDeposit(fact base.Fact) (Deposit, error) {
